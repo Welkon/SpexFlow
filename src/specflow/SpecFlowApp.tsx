@@ -117,6 +117,17 @@ export function SpecFlowApp() {
     setAppData((d) => ({ ...d, tabs: [...d.tabs, tab], activeTabId: id }))
   }
 
+  function renameTab(tabId: string) {
+    const tab = appDataRef.current.tabs.find((t) => t.id === tabId)
+    if (!tab) return
+    const nextName = window.prompt('Canvas name?', tab.name) ?? ''
+    if (!nextName.trim()) return
+    setAppData((d) => ({
+      ...d,
+      tabs: d.tabs.map((t) => (t.id === tabId ? { ...t, name: nextName.trim() } : t)),
+    }))
+  }
+
   function closeTab(tabId: string) {
     setAppData((d) => {
       const nextTabs = d.tabs.filter((t) => t.id !== tabId)
@@ -687,7 +698,16 @@ export function SpecFlowApp() {
             className={t.id === appData.activeTabId ? 'sfTab sfTabActive' : 'sfTab'}
             onClick={() => setActiveTabId(t.id)}
           >
-            <span className="sfTabName">{t.name}</span>
+            <span
+              className="sfTabName"
+              onDoubleClick={(e) => {
+                e.stopPropagation()
+                renameTab(t.id)
+              }}
+              title="Double-click to rename"
+            >
+              {t.name}
+            </span>
             <button
               className="sfTabClose"
               onClick={(e) => {

@@ -36,6 +36,7 @@
 
 .sfTabName {
   font-size: 12px;
+  cursor: text;
 }
 
 .sfTabClose {
