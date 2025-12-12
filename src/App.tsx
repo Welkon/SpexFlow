@@ -10,6 +10,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import './App.css'
+import { RelaceSearchTester } from './RelaceSearchTester'
 
 const initialNodes = [
   {
@@ -39,17 +40,24 @@ export default function App() {
 
   return (
     <div className="app">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        fitView
-      >
-        <Background />
-        <Controls />
-      </ReactFlow>
+      <div className="layout">
+        <div className="sidebar">
+          <RelaceSearchTester />
+        </div>
+        <div className="canvas">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            fitView
+          >
+            <Background />
+            <Controls />
+          </ReactFlow>
+        </div>
+      </div>
     </div>
   )
 }
