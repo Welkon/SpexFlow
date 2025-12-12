@@ -317,12 +317,20 @@ async function grepSearch(
 
 async function bashTool(repoRoot: string, args: { command: string }) {
   const command = args.command.replaceAll('/repo', repoRoot)
-  const { stdout, stderr } = await execFileAsync('/bin/bash', ['-lc', command], {
-    cwd: repoRoot,
-    timeout: 5000,
-    maxBuffer: 1024 * 1024,
-  })
-  return `${stdout}${stderr}`.trimEnd()
+  try {
+    const { stdout, stderr } = await execFileAsync('/bin/bash', ['-lc', command], {
+      cwd: repoRoot,
+      timeout: 5000,
+      maxBuffer: 1024 * 1024,
+    })
+    return `${stdout}${stderr}`.trimEnd()
+  } catch (err: any) {
+    // @@@bash-exit-codes - bash pipelines often return non-zero (e.g. grep no-match); return details to the model instead of aborting the whole run
+    const code = err?.code
+    const stdout = typeof err?.stdout === 'string' ? err.stdout : ''
+    const stderr = typeof err?.stderr === 'string' ? err.stderr : ''
+    return [`Command failed (exit=${code ?? 'unknown'})`, stdout, stderr].filter(Boolean).join('\n').trimEnd()
+  }
 }
 
 async function callRelace(apiKey: string, messages: ChatMessage[]) {
@@ -431,4 +439,3 @@ export async function runRelaceSearch(args: RunRelaceSearchArgs): Promise<RunRel
 
   throw new Error(`Exceeded maxTurns (${maxTurns}) without report_back.`)
 }
-
