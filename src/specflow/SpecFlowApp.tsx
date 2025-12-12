@@ -249,7 +249,7 @@ export function SpecFlowApp() {
           status: 'idle',
           error: null,
           locked: false,
-          model: 'anthropic/claude-3.5-haiku',
+          model: 'x-ai/grok-4.1-fast',
           systemPrompt: '',
           query: '',
           output: null,
@@ -496,11 +496,11 @@ export function SpecFlowApp() {
     }
 
     const reachable = new Set<string>()
-    ;(function mark(id: string) {
-      if (reachable.has(id)) return
-      reachable.add(id)
-      for (const next of succIdsBy.get(id) ?? []) mark(next)
-    })(nodeId)
+      ; (function mark(id: string) {
+        if (reachable.has(id)) return
+        reachable.add(id)
+        for (const next of succIdsBy.get(id) ?? []) mark(next)
+      })(nodeId)
 
     const resetSet = new Set<string>()
     for (const id of reachable) {
@@ -831,8 +831,14 @@ export function SpecFlowApp() {
             nodeTypes={nodeTypes}
             onSelectionChange={(params) => {
               const nodes = params.nodes
-              if (nodes.length === 1) setSelected({ nodeId: nodes[0].id })
-              else setSelected(null)
+              setSelected((prev) => {
+                if (nodes.length === 1) {
+                  const nodeId = nodes[0].id
+                  if (prev?.nodeId === nodeId) return prev
+                  return { nodeId }
+                }
+                return prev === null ? prev : null
+              })
             }}
             deleteKeyCode={['Backspace', 'Delete']}
             fitView

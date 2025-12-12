@@ -35,23 +35,23 @@ export type LLMData = BaseNodeData & {
 
 export type AppNode =
   | {
-      id: string
-      type: 'code-search'
-      position: { x: number; y: number }
-      data: CodeSearchData
-    }
+    id: string
+    type: 'code-search'
+    position: { x: number; y: number }
+    data: CodeSearchData
+  }
   | {
-      id: string
-      type: 'context-converter'
-      position: { x: number; y: number }
-      data: ContextConverterData
-    }
+    id: string
+    type: 'context-converter'
+    position: { x: number; y: number }
+    data: ContextConverterData
+  }
   | {
-      id: string
-      type: 'llm'
-      position: { x: number; y: number }
-      data: LLMData
-    }
+    id: string
+    type: 'llm'
+    position: { x: number; y: number }
+    data: LLMData
+  }
 
 export type AppEdge = {
   id: string
@@ -122,7 +122,7 @@ export function defaultAppData(): AppData {
                 status: 'idle',
                 error: null,
                 locked: false,
-                model: 'anthropic/claude-3.5-haiku',
+                model: 'x-ai/grok-4.1-fast',
                 systemPrompt:
                   'You are a senior software engineer. Given code context, propose a concrete implementation plan and the key files to edit.',
                 query: 'Propose a plan to improve this authentication design.',
