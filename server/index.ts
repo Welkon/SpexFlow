@@ -34,18 +34,20 @@ app.post('/api/relace-search', async (req, res) => {
     const apiKey = await readApiKeyFromDotfile()
     const result = await runRelaceSearch({ apiKey, repoRoot, userQuery: query })
     res.json(result)
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err)
-    res.status(500).json({ error: String(err?.message ?? err) })
+    const message = err instanceof Error ? err.message : String(err)
+    res.status(500).json({ error: message })
   }
 })
 
 app.get('/api/app-data', async (_req, res) => {
   try {
     res.json(await loadAppData())
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err)
-    res.status(500).json({ error: String(err?.message ?? err) })
+    const message = err instanceof Error ? err.message : String(err)
+    res.status(500).json({ error: message })
   }
 })
 
@@ -53,9 +55,10 @@ app.put('/api/app-data', async (req, res) => {
   try {
     await saveAppData(req.body)
     res.json({ ok: true })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err)
-    res.status(500).json({ error: String(err?.message ?? err) })
+    const message = err instanceof Error ? err.message : String(err)
+    res.status(500).json({ error: message })
   }
 })
 
@@ -76,9 +79,10 @@ app.post('/api/repo-context', async (req, res) => {
 
     const text = await buildRepoContext({ repoRoot, explanation, files, fullFile })
     res.json({ text })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err)
-    res.status(500).json({ error: String(err?.message ?? err) })
+    const message = err instanceof Error ? err.message : String(err)
+    res.status(500).json({ error: message })
   }
 })
 
@@ -97,9 +101,10 @@ app.post('/api/llm', async (req, res) => {
     const userPrompt = [context.trimEnd(), '', '---', '', query].join('\n')
     const output = await runOpenRouterChat({ model, systemPrompt, userPrompt })
     res.json({ output })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err)
-    res.status(500).json({ error: String(err?.message ?? err) })
+    const message = err instanceof Error ? err.message : String(err)
+    res.status(500).json({ error: message })
   }
 })
 

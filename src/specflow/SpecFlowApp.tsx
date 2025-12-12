@@ -368,8 +368,8 @@ export function SpecFlowApp() {
             },
           }
         })
-      } catch (err: any) {
-        const message = String(err?.message ?? err)
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err)
         patchNodeById(nodeId, (n) => ({ ...n, data: { ...n.data, status: 'error', error: message } }))
         throw err
       }
@@ -383,7 +383,6 @@ export function SpecFlowApp() {
   }
 
   async function runFrom(nodeId: string) {
-    const snapshot = getActiveTab(appDataRef.current)
     const visited = new Set<string>()
 
     async function walk(id: string) {

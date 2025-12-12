@@ -308,10 +308,12 @@ async function grepSearch(
   try {
     const { stdout } = await execFileAsync('rg', rgArgs, { maxBuffer: 1024 * 1024 })
     return stdout.trimEnd()
-  } catch (err: any) {
-    if (typeof err?.code === 'number' && err.code === 1) return 'No matches found.'
-    const stderr = typeof err?.stderr === 'string' ? err.stderr : ''
-    throw new Error(`rg failed: ${stderr || String(err)}`)
+  } catch (err: unknown) {
+    const code = (err as { code?: unknown }).code
+    if (typeof code === 'number' && code === 1) return 'No matches found.'
+    const stderr = (err as { stderr?: unknown }).stderr
+    const stderrText = typeof stderr === 'string' ? stderr : ''
+    throw new Error(`rg failed: ${stderrText || String(err)}`)
   }
 }
 
@@ -324,12 +326,14 @@ async function bashTool(repoRoot: string, args: { command: string }) {
       maxBuffer: 1024 * 1024,
     })
     return `${stdout}${stderr}`.trimEnd()
-  } catch (err: any) {
+  } catch (err: unknown) {
     // @@@bash-exit-codes - bash pipelines often return non-zero (e.g. grep no-match); return details to the model instead of aborting the whole run
-    const code = err?.code
-    const stdout = typeof err?.stdout === 'string' ? err.stdout : ''
-    const stderr = typeof err?.stderr === 'string' ? err.stderr : ''
-    return [`Command failed (exit=${code ?? 'unknown'})`, stdout, stderr].filter(Boolean).join('\n').trimEnd()
+    const code = (err as { code?: unknown }).code
+    const stdout = (err as { stdout?: unknown }).stdout
+    const stderr = (err as { stderr?: unknown }).stderr
+    const stdoutText = typeof stdout === 'string' ? stdout : ''
+    const stderrText = typeof stderr === 'string' ? stderr : ''
+    return [`Command failed (exit=${code ?? 'unknown'})`, stdoutText, stderrText].filter(Boolean).join('\n').trimEnd()
   }
 }
 

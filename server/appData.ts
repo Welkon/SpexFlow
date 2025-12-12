@@ -142,8 +142,9 @@ export async function loadAppData(): Promise<AppData> {
   try {
     const raw = await readFile(dataPath, 'utf-8')
     return JSON.parse(raw) as AppData
-  } catch (err: any) {
-    if (err?.code === 'ENOENT') return defaultAppData()
+  } catch (err: unknown) {
+    const code = (err as NodeJS.ErrnoException).code
+    if (code === 'ENOENT') return defaultAppData()
     throw err
   }
 }
