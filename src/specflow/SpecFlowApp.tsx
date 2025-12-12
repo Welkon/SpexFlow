@@ -384,19 +384,27 @@ export function SpecFlowApp() {
 
   async function runFrom(nodeId: string) {
     const visited = new Set<string>()
+    const succeeded = new Set<string>()
 
     async function walk(id: string) {
       if (visited.has(id)) return
       visited.add(id)
 
-      await runNode(id)
+      try {
+        await runNode(id)
+        succeeded.add(id)
+      } catch {
+        return
+      }
 
       const snap2 = getActiveTab(appDataRef.current)
       const next = successors(snap2.canvas.nodes, snap2.canvas.edges, id)
       await Promise.all(
         next.map(async (n) => {
           const preds = predecessors(snap2.canvas.nodes, snap2.canvas.edges, n.id)
-          if (!canRunFromPredecessors(preds)) return
+          // @@@chain-gating - state updates are async; treat nodes we just ran as succeeded for gating
+          const ok = preds.every((p) => succeeded.has(p.id) || p.data.status === 'success')
+          if (!ok) return
           await walk(n.id)
         }),
       )
