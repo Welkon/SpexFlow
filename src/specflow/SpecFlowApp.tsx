@@ -151,6 +151,31 @@ export function SpecFlowApp() {
     setSelected(null)
   }
 
+  function resetNodeRuntime(node: AppNode): AppNode {
+    if (node.data.locked) return node
+    if (node.type === 'code-search') {
+      return { ...node, data: { ...node.data, status: 'idle', error: null, output: null } }
+    }
+    if (node.type === 'context-converter') {
+      return { ...node, data: { ...node.data, status: 'idle', error: null, output: null } }
+    }
+    return { ...node, data: { ...node.data, status: 'idle', error: null, output: null } }
+  }
+
+  function resetActiveCanvasAll() {
+    if (inFlightRuns.current.size > 0) {
+      window.alert('Some nodes are running. Wait for them to finish before resetting.')
+      return
+    }
+    updateActiveCanvas((t) => ({
+      ...t,
+      canvas: {
+        ...t.canvas,
+        nodes: t.canvas.nodes.map(resetNodeRuntime),
+      },
+    }))
+  }
+
   function updateActiveCanvas(patch: (tab: Tab) => Tab) {
     setAppData((d) => {
       const nextTabs = d.tabs.map((t) => (t.id === d.activeTabId ? patch(t) : t))
@@ -475,6 +500,27 @@ export function SpecFlowApp() {
       for (const next of succIdsBy.get(id) ?? []) mark(next)
     })(nodeId)
 
+    const resetSet = new Set<string>()
+    for (const id of reachable) {
+      const n = tabSnapshot.canvas.nodes.find((x) => x.id === id)
+      if (!n) continue
+      if (n.data.locked) continue
+      resetSet.add(id)
+    }
+
+    if ([...resetSet].some((id) => inFlightRuns.current.has(id))) {
+      throw new Error('Some nodes in this chain are running. Wait for them to finish before chaining.')
+    }
+
+    // @@@chain-reset - chain re-runs by resetting runtime fields for reachable, non-locked nodes
+    updateActiveCanvas((t) => ({
+      ...t,
+      canvas: {
+        ...t.canvas,
+        nodes: t.canvas.nodes.map((n) => (resetSet.has(n.id) ? resetNodeRuntime(n) : n)),
+      },
+    }))
+
     const scheduled = new Map<string, Promise<LocalOutput | null>>()
     const visiting = new Set<string>()
 
@@ -522,10 +568,13 @@ export function SpecFlowApp() {
         const node = snap.canvas.nodes.find((n) => n.id === id)
         if (!node) throw new Error(`Node not found: ${id}`)
 
-        if (node.data.status === 'success') {
+        if (!resetSet.has(id) && node.data.status === 'success') {
           const out = nodeToLocalOutput(node)
           if (out) localOutputs.set(id, out)
         } else {
+          if (node.data.locked) {
+            throw new Error(`Locked node must already be succeeded: ${id}`)
+          }
           const out = await runNode(id, 'chain', localOutputs)
           if (out) localOutputs.set(id, out)
         }
@@ -764,6 +813,8 @@ export function SpecFlowApp() {
             <button onClick={() => addNode('code-search')}>🔍</button>
             <button onClick={() => addNode('context-converter')}>📄</button>
             <button onClick={() => addNode('llm')}>🤖</button>
+            <div className="sfToolbarSpacer" />
+            <button onClick={resetActiveCanvasAll}>Reset</button>
           </div>
 
           <ReactFlow

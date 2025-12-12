@@ -96,6 +96,10 @@
   border-radius: 12px;
 }
 
+.sfToolbarSpacer {
+  width: 10px;
+}
+
 .sfToolbar button {
   width: 34px;
   height: 34px;
@@ -103,6 +107,11 @@
   border: 1px solid #e5e5e5;
   background: #fff;
   cursor: pointer;
+}
+
+.sfToolbar button:last-child {
+  width: auto;
+  padding: 0 10px;
 }
 
 .sfSidebar {
