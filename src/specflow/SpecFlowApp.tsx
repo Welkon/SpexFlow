@@ -13,11 +13,17 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { defaultAppData, defaultCanvas } from './defaultData'
-import type { AppData, AppNode, Tab } from './types'
+import type { AppData, AppNode, CodeSearchOutput, Tab } from './types'
 import { buildRepoContext, fetchAppData, runCodeSearch, runLLM, saveAppData } from './api'
 import { CodeSearchNodeView, ContextConverterNodeView, LLMNodeView } from './nodes'
 
 type Selected = { nodeId: string } | null
+
+type LocalOutput =
+  | { kind: 'string'; value: string }
+  | { kind: 'code-search'; value: CodeSearchOutput }
+
+type RunMode = 'single' | 'chain'
 
 function uid(prefix: string) {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now()}`
@@ -39,25 +45,9 @@ function predecessors(nodes: AppNode[], edges: Edge[], nodeId: string) {
   return sources.map((id) => byId.get(id)).filter(Boolean) as AppNode[]
 }
 
-function successors(nodes: AppNode[], edges: Edge[], nodeId: string) {
-  const targets = edges.filter((e) => e.source === nodeId).map((e) => e.target)
-  const byId = new Map(nodes.map((n) => [n.id, n]))
-  return targets.map((id) => byId.get(id)).filter(Boolean) as AppNode[]
-}
-
 function canRunFromPredecessors(preds: AppNode[]) {
   if (preds.length === 0) return true
   return preds.every((p) => p.data.status === 'success')
-}
-
-function concatPredecessorOutputs(preds: AppNode[]) {
-  const parts: string[] = []
-  for (const p of preds) {
-    if (p.type === 'context-converter' || p.type === 'llm') {
-      if (typeof p.data.output === 'string' && p.data.output.trim()) parts.push(p.data.output)
-    }
-  }
-  return parts.join('\n\n')
 }
 
 export function SpecFlowApp() {
@@ -66,7 +56,7 @@ export function SpecFlowApp() {
   const [selected, setSelected] = useState<Selected>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const saveTimer = useRef<number | null>(null)
-  const inFlightRuns = useRef(new Map<string, Promise<void>>())
+  const inFlightRuns = useRef(new Map<string, Promise<LocalOutput | null>>())
 
   const activeTab = useMemo(() => getActiveTab(appData), [appData])
 
@@ -256,7 +246,50 @@ export function SpecFlowApp() {
     }))
   }
 
-  async function runNode(nodeId: string) {
+  function nodeToLocalOutput(node: AppNode): LocalOutput | null {
+    if (node.type === 'code-search') {
+      return node.data.output ? { kind: 'code-search', value: node.data.output } : null
+    }
+    if (node.type === 'context-converter' || node.type === 'llm') {
+      return node.data.output ? { kind: 'string', value: node.data.output } : null
+    }
+    return null
+  }
+
+  function getStringOutput(nodeId: string, localOutputs?: Map<string, LocalOutput>): string {
+    const local = localOutputs?.get(nodeId)
+    if (local?.kind === 'string') return local.value
+
+    const snap = getActiveTab(appDataRef.current)
+    const n = snap.canvas.nodes.find((x) => x.id === nodeId)
+    if (!n) return ''
+    if (n.type === 'context-converter' || n.type === 'llm') return n.data.output ?? ''
+    return ''
+  }
+
+  function getCodeSearchOutput(nodeId: string, localOutputs?: Map<string, LocalOutput>): CodeSearchOutput | null {
+    const local = localOutputs?.get(nodeId)
+    if (local?.kind === 'code-search') return local.value
+
+    const snap = getActiveTab(appDataRef.current)
+    const n = snap.canvas.nodes.find((x) => x.id === nodeId)
+    if (!n) return null
+    if (n.type === 'code-search') return n.data.output
+    return null
+  }
+
+  function concatPredStrings(preds: AppNode[], localOutputs?: Map<string, LocalOutput>) {
+    const parts: string[] = []
+    for (const p of preds) {
+      if (p.type === 'context-converter' || p.type === 'llm') {
+        const s = getStringOutput(p.id, localOutputs).trim()
+        if (s) parts.push(s)
+      }
+    }
+    return parts.join('\n\n')
+  }
+
+  async function runNode(nodeId: string, mode: RunMode = 'single', localOutputs?: Map<string, LocalOutput>) {
     const existing = inFlightRuns.current.get(nodeId)
     if (existing) return existing
 
@@ -266,15 +299,17 @@ export function SpecFlowApp() {
       if (!node) throw new Error(`Node not found: ${nodeId}`)
 
       const preds = predecessors(snapshot.canvas.nodes, snapshot.canvas.edges, nodeId)
-      if (!canRunFromPredecessors(preds) && !(node.type === 'code-search' && node.data.query.trim())) {
-        throw new Error('Predecessors not succeeded yet.')
+      if (mode === 'single') {
+        if (!canRunFromPredecessors(preds) && !(node.type === 'code-search' && node.data.query.trim())) {
+          throw new Error('Predecessors not succeeded yet.')
+        }
       }
 
       patchNodeById(nodeId, (n) => ({ ...n, data: { ...n.data, status: 'running', error: null } }))
 
       try {
         if (node.type === 'code-search') {
-          const input = concatPredecessorOutputs(preds)
+          const input = concatPredStrings(preds, localOutputs)
           const query = node.data.query.trim() ? node.data.query.trim() : input.trim()
           const finalQuery =
             query || window.prompt('Code search query?') || ''
@@ -300,7 +335,9 @@ export function SpecFlowApp() {
               },
             }
           })
-          return
+          const out: LocalOutput = { kind: 'code-search', value: result.report }
+          localOutputs?.set(nodeId, out)
+          return out
         }
 
         if (node.type === 'context-converter') {
@@ -309,32 +346,36 @@ export function SpecFlowApp() {
 
           const contexts = await Promise.all(
             searchPreds.map(async (p) => {
-              if (!p.data.output) throw new Error('Code-search predecessor has no output.')
+              const out = getCodeSearchOutput(p.id, localOutputs)
+              if (!out) throw new Error('Code-search predecessor has no output.')
               return buildRepoContext({
                 repoPath: p.data.repoPath,
-                explanation: p.data.output.explanation,
-                files: p.data.output.files,
+                explanation: out.explanation,
+                files: out.files,
                 fullFile: node.data.fullFile,
               })
             }),
           )
 
+          const text = contexts.join('\n\n---\n\n')
           patchNodeById(nodeId, (n) => {
             if (n.type !== 'context-converter') return n
             return {
               ...n,
               data: {
                 ...n.data,
-                output: contexts.join('\n\n---\n\n'),
+                output: text,
                 status: 'success',
                 error: null,
               },
             }
           })
-          return
+          const out: LocalOutput = { kind: 'string', value: text }
+          localOutputs?.set(nodeId, out)
+          return out
         }
 
-        const context = concatPredecessorOutputs(preds)
+        const context = concatPredStrings(preds, localOutputs)
         const finalQuery = node.data.query.trim() ? node.data.query.trim() : window.prompt('LLM query?') || ''
         if (!finalQuery.trim()) throw new Error('Empty query')
 
@@ -368,6 +409,9 @@ export function SpecFlowApp() {
             },
           }
         })
+        const out: LocalOutput = { kind: 'string', value: output }
+        localOutputs?.set(nodeId, out)
+        return out
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err)
         patchNodeById(nodeId, (n) => ({ ...n, data: { ...n.data, status: 'error', error: message } }))
@@ -383,35 +427,94 @@ export function SpecFlowApp() {
   }
 
   async function runFrom(nodeId: string) {
-    const visited = new Set<string>()
-    const succeeded = new Set<string>()
+    const localOutputs = new Map<string, LocalOutput>()
+    const tabSnapshot = getActiveTab(appDataRef.current)
+    const edges = tabSnapshot.canvas.edges
 
-    async function walk(id: string) {
-      if (visited.has(id)) return
-      visited.add(id)
+    const predIdsBy = new Map<string, string[]>()
+    const succIdsBy = new Map<string, string[]>()
+    for (const e of edges) {
+      predIdsBy.set(e.target, [...(predIdsBy.get(e.target) ?? []), e.source])
+      succIdsBy.set(e.source, [...(succIdsBy.get(e.source) ?? []), e.target])
+    }
 
-      try {
-        await runNode(id)
-        succeeded.add(id)
-      } catch {
-        return
+    const reachable = new Set<string>()
+    ;(function mark(id: string) {
+      if (reachable.has(id)) return
+      reachable.add(id)
+      for (const next of succIdsBy.get(id) ?? []) mark(next)
+    })(nodeId)
+
+    const scheduled = new Map<string, Promise<LocalOutput | null>>()
+    const visiting = new Set<string>()
+
+    async function requireExternalPredSuccess(predId: string) {
+      const inflight = inFlightRuns.current.get(predId)
+      if (inflight) {
+        try {
+          const out = await inflight
+          if (out) localOutputs.set(predId, out)
+        } catch {
+          // predecessor run failed elsewhere
+        }
       }
 
-      const snap2 = getActiveTab(appDataRef.current)
-      const next = successors(snap2.canvas.nodes, snap2.canvas.edges, id)
-      await Promise.all(
-        next.map(async (n) => {
-          const preds = predecessors(snap2.canvas.nodes, snap2.canvas.edges, n.id)
-          // @@@chain-gating - state updates are async; treat nodes we just ran as succeeded for gating
-          const ok = preds.every((p) => succeeded.has(p.id) || p.data.status === 'success')
-          if (!ok) return
-          await walk(n.id)
-        }),
-      )
+      const snap = getActiveTab(appDataRef.current)
+      const pred = snap.canvas.nodes.find((n) => n.id === predId)
+      if (!pred || pred.data.status !== 'success') {
+        throw new Error(`Predecessor not succeeded: ${predId}`)
+      }
+      const out = nodeToLocalOutput(pred)
+      if (out) localOutputs.set(predId, out)
+    }
+
+    function schedule(id: string): Promise<LocalOutput | null> {
+      const existing = scheduled.get(id)
+      if (existing) return existing
+
+      const p = (async () => {
+        // @@@chain-signals - per-run promises act as signals; await deps then execute
+        if (visiting.has(id)) throw new Error(`Cycle detected at node ${id}`)
+        visiting.add(id)
+
+        const predIds = predIdsBy.get(id) ?? []
+        await Promise.all(
+          predIds.map(async (predId) => {
+            if (reachable.has(predId)) {
+              await schedule(predId)
+              return
+            }
+            await requireExternalPredSuccess(predId)
+          }),
+        )
+
+        const snap = getActiveTab(appDataRef.current)
+        const node = snap.canvas.nodes.find((n) => n.id === id)
+        if (!node) throw new Error(`Node not found: ${id}`)
+
+        if (node.data.status === 'success') {
+          const out = nodeToLocalOutput(node)
+          if (out) localOutputs.set(id, out)
+        } else {
+          await runNode(id, 'chain', localOutputs)
+        }
+
+        visiting.delete(id)
+
+        const succIds = succIdsBy.get(id) ?? []
+        await Promise.allSettled(
+          succIds.filter((x) => reachable.has(x)).map((x) => schedule(x)),
+        )
+
+        return localOutputs.get(id) ?? null
+      })()
+
+      scheduled.set(id, p)
+      return p
     }
 
     // @@@no-main-thread - independent chains just call runFrom; we don't serialize globally
-    await walk(nodeId)
+    await schedule(nodeId)
   }
 
   const selectedNode = selected
