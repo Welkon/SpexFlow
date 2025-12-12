@@ -12,7 +12,7 @@ import {
   type NodeChange,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { defaultAppData } from './defaultData'
+import { defaultAppData, defaultCanvas } from './defaultData'
 import type { AppData, AppNode, Tab } from './types'
 import { buildRepoContext, fetchAppData, runCodeSearch, runLLM, saveAppData } from './api'
 import { CodeSearchNodeView, ContextConverterNodeView, LLMNodeView } from './nodes'
@@ -122,7 +122,7 @@ export function SpecFlowApp() {
       id,
       name: `Canvas ${appData.tabs.length + 1}`,
       createdAt: new Date().toISOString(),
-      canvas: { nodes: [], edges: [] },
+      canvas: defaultCanvas(),
     }
     setAppData((d) => ({ ...d, tabs: [...d.tabs, tab], activeTabId: id }))
   }
@@ -134,6 +134,19 @@ export function SpecFlowApp() {
         d.activeTabId === tabId ? (nextTabs[0]?.id ?? null) : d.activeTabId
       return { ...d, tabs: nextTabs, activeTabId: nextActive }
     })
+    setSelected(null)
+  }
+
+  function deleteSelectedNode() {
+    if (!selected) return
+    const nodeId = selected.nodeId
+    updateActiveCanvas((t) => ({
+      ...t,
+      canvas: {
+        nodes: t.canvas.nodes.filter((n) => n.id !== nodeId),
+        edges: t.canvas.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
+      },
+    }))
     setSelected(null)
   }
 
@@ -398,161 +411,154 @@ export function SpecFlowApp() {
     ? activeTab.canvas.nodes.find((n) => n.id === selected.nodeId) ?? null
     : null
 
-  const sidebar = (
+  const sidebar = selectedNode ? (
     <div className="sfSidebar">
-      {loadError ? (
-        <div className="sfError">Failed to load data: {loadError}</div>
-      ) : null}
+      <div>
+        <div className="sfHeader">{selectedNode.data.title}</div>
+        <div className="sfSectionTitle">Settings</div>
 
-      {!selectedNode ? (
-        <div className="sfEmpty">Select a node.</div>
-      ) : (
-        <div>
-          <div className="sfHeader">{selectedNode.data.title}</div>
-          <div className="sfSectionTitle">Settings</div>
-
-          {selectedNode.type === 'code-search' ? (
-            <>
-              <label className="sfLabel">
-                repoPath
-                <input
-                  className="sfInput"
-                  value={selectedNode.data.repoPath}
-                  onChange={(e) =>
-                    patchSelectedNode((n) =>
-                      n.type === 'code-search'
-                        ? { ...n, data: { ...n.data, repoPath: e.target.value } }
-                        : n,
-                    )
-                  }
-                />
-              </label>
-              <label className="sfLabel">
-                query
-                <textarea
-                  className="sfTextarea"
-                  value={selectedNode.data.query}
-                  onChange={(e) =>
-                    patchSelectedNode((n) =>
-                      n.type === 'code-search'
-                        ? { ...n, data: { ...n.data, query: e.target.value } }
-                        : n,
-                    )
-                  }
-                  rows={5}
-                />
-              </label>
-            </>
-          ) : null}
-
-          {selectedNode.type === 'context-converter' ? (
+        {selectedNode.type === 'code-search' ? (
+          <>
             <label className="sfLabel">
-              <div>fullFile</div>
+              repoPath
               <input
-                type="checkbox"
-                checked={selectedNode.data.fullFile}
+                className="sfInput"
+                value={selectedNode.data.repoPath}
                 onChange={(e) =>
                   patchSelectedNode((n) =>
-                    n.type === 'context-converter'
-                      ? { ...n, data: { ...n.data, fullFile: e.target.checked } }
+                    n.type === 'code-search'
+                      ? { ...n, data: { ...n.data, repoPath: e.target.value } }
                       : n,
                   )
                 }
               />
             </label>
-          ) : null}
+            <label className="sfLabel">
+              query
+              <textarea
+                className="sfTextarea"
+                value={selectedNode.data.query}
+                onChange={(e) =>
+                  patchSelectedNode((n) =>
+                    n.type === 'code-search'
+                      ? { ...n, data: { ...n.data, query: e.target.value } }
+                      : n,
+                  )
+                }
+                rows={5}
+              />
+            </label>
+          </>
+        ) : null}
 
-          {selectedNode.type === 'llm' ? (
-            <>
-              <label className="sfLabel">
-                model
-                <input
-                  className="sfInput"
-                  value={selectedNode.data.model}
-                  onChange={(e) =>
-                    patchSelectedNode((n) =>
-                      n.type === 'llm'
-                        ? { ...n, data: { ...n.data, model: e.target.value } }
-                        : n,
-                    )
-                  }
-                />
-              </label>
-              <label className="sfLabel">
-                systemPrompt
-                <textarea
-                  className="sfTextarea"
-                  value={selectedNode.data.systemPrompt}
-                  onChange={(e) =>
-                    patchSelectedNode((n) =>
-                      n.type === 'llm'
-                        ? { ...n, data: { ...n.data, systemPrompt: e.target.value } }
-                        : n,
-                    )
-                  }
-                  rows={6}
-                />
-              </label>
-              <label className="sfLabel">
-                query
-                <textarea
-                  className="sfTextarea"
-                  value={selectedNode.data.query}
-                  onChange={(e) =>
-                    patchSelectedNode((n) =>
-                      n.type === 'llm'
-                        ? { ...n, data: { ...n.data, query: e.target.value } }
-                        : n,
-                    )
-                  }
-                  rows={4}
-                />
-              </label>
-            </>
-          ) : null}
+        {selectedNode.type === 'context-converter' ? (
+          <label className="sfLabel">
+            <div>fullFile</div>
+            <input
+              type="checkbox"
+              checked={selectedNode.data.fullFile}
+              onChange={(e) =>
+                patchSelectedNode((n) =>
+                  n.type === 'context-converter'
+                    ? { ...n, data: { ...n.data, fullFile: e.target.checked } }
+                    : n,
+                )
+              }
+            />
+          </label>
+        ) : null}
 
-          <div className="sfSectionTitle">Output</div>
-          {selectedNode.data.error ? (
-            <pre className="sfOutput sfOutputError">{selectedNode.data.error}</pre>
-          ) : null}
+        {selectedNode.type === 'llm' ? (
+          <>
+            <label className="sfLabel">
+              model
+              <input
+                className="sfInput"
+                value={selectedNode.data.model}
+                onChange={(e) =>
+                  patchSelectedNode((n) =>
+                    n.type === 'llm'
+                      ? { ...n, data: { ...n.data, model: e.target.value } }
+                      : n,
+                  )
+                }
+              />
+            </label>
+            <label className="sfLabel">
+              systemPrompt
+              <textarea
+                className="sfTextarea"
+                value={selectedNode.data.systemPrompt}
+                onChange={(e) =>
+                  patchSelectedNode((n) =>
+                    n.type === 'llm'
+                      ? { ...n, data: { ...n.data, systemPrompt: e.target.value } }
+                      : n,
+                  )
+                }
+                rows={6}
+              />
+            </label>
+            <label className="sfLabel">
+              query
+              <textarea
+                className="sfTextarea"
+                value={selectedNode.data.query}
+                onChange={(e) =>
+                  patchSelectedNode((n) =>
+                    n.type === 'llm'
+                      ? { ...n, data: { ...n.data, query: e.target.value } }
+                      : n,
+                  )
+                }
+                rows={4}
+              />
+            </label>
+          </>
+        ) : null}
 
-          {selectedNode.type === 'code-search' ? (
-            <pre className="sfOutput">
-              {selectedNode.data.output
-                ? JSON.stringify(selectedNode.data.output, null, 2)
-                : '(no output)'}
-            </pre>
-          ) : null}
+        <div className="sfSectionTitle">Output</div>
+        {selectedNode.data.error ? (
+          <pre className="sfOutput sfOutputError">{selectedNode.data.error}</pre>
+        ) : null}
 
-          {selectedNode.type === 'context-converter' ? (
-            <pre className="sfOutput">
-              {selectedNode.data.output ?? '(no output)'}
-            </pre>
-          ) : null}
+        {selectedNode.type === 'code-search' ? (
+          <pre className="sfOutput">
+            {selectedNode.data.output
+              ? JSON.stringify(selectedNode.data.output, null, 2)
+              : '(no output)'}
+          </pre>
+        ) : null}
 
-          {selectedNode.type === 'llm' ? (
-            <pre className="sfOutput">{selectedNode.data.output ?? '(no output)'}</pre>
-          ) : null}
+        {selectedNode.type === 'context-converter' ? (
+          <pre className="sfOutput">
+            {selectedNode.data.output ?? '(no output)'}
+          </pre>
+        ) : null}
 
-          <div className="sfButtons">
-            <button onClick={() => runNode(selectedNode.id)}>Run</button>
-            <button onClick={() => runFrom(selectedNode.id)}>Chain</button>
-            <button
-              onClick={() => {
-                const text =
-                  selectedNode.type === 'code-search'
-                    ? JSON.stringify(selectedNode.data.output, null, 2)
-                    : (selectedNode.data.output ?? '')
-                navigator.clipboard.writeText(text)
-              }}
-            >
-              Copy
-            </button>
-          </div>
+        {selectedNode.type === 'llm' ? (
+          <pre className="sfOutput">{selectedNode.data.output ?? '(no output)'}</pre>
+        ) : null}
+
+        <div className="sfButtons">
+          <button onClick={() => runNode(selectedNode.id)}>Run</button>
+          <button onClick={() => runFrom(selectedNode.id)}>Chain</button>
+          <button
+            onClick={() => {
+              const text =
+                selectedNode.type === 'code-search'
+                  ? JSON.stringify(selectedNode.data.output, null, 2)
+                  : (selectedNode.data.output ?? '')
+              navigator.clipboard.writeText(text)
+            }}
+          >
+            Copy
+          </button>
+          <button onClick={deleteSelectedNode}>Delete</button>
         </div>
-      )}
+      </div>
     </div>
-  )
+  ) : null
 
   return (
     <div className="sfRoot">
@@ -582,6 +588,7 @@ export function SpecFlowApp() {
 
       <div className="sfBody">
         <div className="sfCanvas">
+          {loadError ? <div className="sfLoadErrorBanner">{loadError}</div> : null}
           <div className="sfToolbar">
             <button onClick={() => addNode('code-search')}>🔍</button>
             <button onClick={() => addNode('context-converter')}>📄</button>
@@ -596,6 +603,8 @@ export function SpecFlowApp() {
             onConnect={onConnect}
             nodeTypes={nodeTypes}
             onNodeClick={(_e, node) => setSelected({ nodeId: node.id })}
+            onPaneClick={() => setSelected(null)}
+            deleteKeyCode={['Backspace', 'Delete']}
             fitView
           >
             <Background />

@@ -69,6 +69,19 @@
   min-width: 0;
 }
 
+.sfLoadErrorBanner {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 6;
+  max-width: 520px;
+  border: 1px solid #ffdddd;
+  background: rgba(255, 245, 245, 0.95);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
 .sfToolbar {
   position: absolute;
   top: 10px;

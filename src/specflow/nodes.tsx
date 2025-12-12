@@ -1,4 +1,5 @@
 import type { NodeProps } from '@xyflow/react'
+import { Handle, Position } from '@xyflow/react'
 import type { CodeSearchData, ContextConverterData, LLMData, NodeStatus } from './types'
 
 function statusStyle(status: NodeStatus) {
@@ -8,7 +9,12 @@ function statusStyle(status: NodeStatus) {
   return { background: '#fff', borderColor: '#d0d0d0' }
 }
 
-function NodeShell(props: { title: string; status: NodeStatus; subtitle: string }) {
+function NodeShell(props: {
+  title: string
+  status: NodeStatus
+  subtitle: string
+  selected: boolean
+}) {
   const style = statusStyle(props.status)
   return (
     <div
@@ -19,8 +25,19 @@ function NodeShell(props: { title: string; status: NodeStatus; subtitle: string 
         borderRadius: 10,
         padding: 10,
         fontSize: 12,
+        boxShadow: props.selected ? '0 0 0 3px rgba(0, 110, 255, 0.25)' : 'none',
       }}
     >
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{ width: 10, height: 10, background: '#666' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{ width: 10, height: 10, background: '#666' }}
+      />
       <div style={{ fontWeight: 700 }}>{props.title}</div>
       <div style={{ opacity: 0.8, marginTop: 4 }}>{props.subtitle}</div>
       <div style={{ marginTop: 8, opacity: 0.7 }}>status: {props.status}</div>
@@ -28,33 +45,38 @@ function NodeShell(props: { title: string; status: NodeStatus; subtitle: string 
   )
 }
 
-export function CodeSearchNodeView({ data }: NodeProps<CodeSearchData>) {
+export function CodeSearchNodeView({ data, selected }: NodeProps<CodeSearchData>) {
   return (
     <NodeShell
       title={data.title}
       status={data.status}
       subtitle={`repo: ${data.repoPath || '(unset)'}`}
+      selected={selected}
     />
   )
 }
 
-export function ContextConverterNodeView({ data }: NodeProps<ContextConverterData>) {
+export function ContextConverterNodeView({
+  data,
+  selected,
+}: NodeProps<ContextConverterData>) {
   return (
     <NodeShell
       title={data.title}
       status={data.status}
       subtitle={data.fullFile ? 'full files' : 'line ranges'}
+      selected={selected}
     />
   )
 }
 
-export function LLMNodeView({ data }: NodeProps<LLMData>) {
+export function LLMNodeView({ data, selected }: NodeProps<LLMData>) {
   return (
     <NodeShell
       title={data.title}
       status={data.status}
       subtitle={`model: ${data.model || '(unset)'}`}
+      selected={selected}
     />
   )
 }
-
