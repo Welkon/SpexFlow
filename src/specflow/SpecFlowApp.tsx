@@ -21,7 +21,7 @@ type Selected = { nodeId: string } | null
 
 type LocalOutput =
   | { kind: 'string'; value: string }
-  | { kind: 'code-search'; value: CodeSearchOutput }
+  | { kind: 'code-search'; value: CodeSearchOutput; repoPath: string }
 
 type RunMode = 'single' | 'chain'
 
@@ -278,6 +278,17 @@ export function SpecFlowApp() {
     return null
   }
 
+  function getCodeSearchRepoPath(nodeId: string, localOutputs?: Map<string, LocalOutput>): string {
+    const local = localOutputs?.get(nodeId)
+    if (local?.kind === 'code-search') return local.repoPath
+
+    const snap = getActiveTab(appDataRef.current)
+    const n = snap.canvas.nodes.find((x) => x.id === nodeId)
+    if (!n) return ''
+    if (n.type === 'code-search') return n.data.repoPath
+    return ''
+  }
+
   function concatPredStrings(preds: AppNode[], localOutputs?: Map<string, LocalOutput>) {
     const parts: string[] = []
     for (const p of preds) {
@@ -335,7 +346,7 @@ export function SpecFlowApp() {
               },
             }
           })
-          const out: LocalOutput = { kind: 'code-search', value: result.report }
+          const out: LocalOutput = { kind: 'code-search', value: result.report, repoPath }
           localOutputs?.set(nodeId, out)
           return out
         }
@@ -349,7 +360,7 @@ export function SpecFlowApp() {
               const out = getCodeSearchOutput(p.id, localOutputs)
               if (!out) throw new Error('Code-search predecessor has no output.')
               return buildRepoContext({
-                repoPath: p.data.repoPath,
+                repoPath: getCodeSearchRepoPath(p.id, localOutputs),
                 explanation: out.explanation,
                 files: out.files,
                 fullFile: node.data.fullFile,
@@ -473,7 +484,7 @@ export function SpecFlowApp() {
       if (existing) return existing
 
       const p = (async () => {
-        // @@@chain-signals - per-run promises act as signals; await deps then execute
+        // @@@chain-signals - per-run promises act as signals; a node awaits only its predecessors
         if (visiting.has(id)) throw new Error(`Cycle detected at node ${id}`)
         visiting.add(id)
 
@@ -496,15 +507,11 @@ export function SpecFlowApp() {
           const out = nodeToLocalOutput(node)
           if (out) localOutputs.set(id, out)
         } else {
-          await runNode(id, 'chain', localOutputs)
+          const out = await runNode(id, 'chain', localOutputs)
+          if (out) localOutputs.set(id, out)
         }
 
         visiting.delete(id)
-
-        const succIds = succIdsBy.get(id) ?? []
-        await Promise.allSettled(
-          succIds.filter((x) => reachable.has(x)).map((x) => schedule(x)),
-        )
 
         return localOutputs.get(id) ?? null
       })()
@@ -514,7 +521,8 @@ export function SpecFlowApp() {
     }
 
     // @@@no-main-thread - independent chains just call runFrom; we don't serialize globally
-    await schedule(nodeId)
+    const ids = [...reachable]
+    await Promise.allSettled(ids.map((id) => schedule(id)))
   }
 
   const selectedNode = selected
