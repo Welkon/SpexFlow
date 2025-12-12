@@ -287,7 +287,9 @@ export function SpecFlowApp() {
 
   function nodeToLocalOutput(node: AppNode): LocalOutput | null {
     if (node.type === 'code-search') {
-      return node.data.output ? { kind: 'code-search', value: node.data.output } : null
+      return node.data.output
+        ? { kind: 'code-search', value: node.data.output, repoPath: node.data.repoPath }
+        : null
     }
     if (node.type === 'context-converter' || node.type === 'llm') {
       return node.data.output ? { kind: 'string', value: node.data.output } : null
@@ -319,7 +321,7 @@ export function SpecFlowApp() {
 
   function getCodeSearchRepoPath(nodeId: string, localOutputs?: Map<string, LocalOutput>): string {
     const local = localOutputs?.get(nodeId)
-    if (local?.kind === 'code-search') return local.repoPath
+    if (local?.kind === 'code-search' && typeof local.repoPath === 'string') return local.repoPath
 
     const snap = getActiveTab(appDataRef.current)
     const n = snap.canvas.nodes.find((x) => x.id === nodeId)
