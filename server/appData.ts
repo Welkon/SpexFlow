@@ -118,7 +118,7 @@ export function defaultAppData(): AppData {
                 title: 'LLM',
                 status: 'idle',
                 error: null,
-                model: 'openai/gpt-4o-mini',
+                model: 'anthropic/claude-3.5-haiku',
                 systemPrompt:
                   'You are a senior software engineer. Given code context, propose a concrete implementation plan and the key files to edit.',
                 query: 'Propose a plan to improve this authentication design.',
@@ -152,4 +152,3 @@ export async function saveAppData(data: AppData): Promise<void> {
   const raw = JSON.stringify(data, null, 2)
   await writeFile(dataPath, raw, 'utf-8')
 }
-
