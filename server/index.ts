@@ -5,6 +5,7 @@ import { runRelaceSearch } from './relaceSearch.js'
 import { loadAppData, saveAppData } from './appData.js'
 import { buildRepoContext } from './repoContext.js'
 import { runOpenRouterChat } from './openRouter.js'
+import { appendSearchRunLog, readRecentSearchRunLogs } from './searchRunLog.js'
 
 const app = express()
 const PORT = 3001
@@ -23,6 +24,8 @@ async function readApiKeyFromDotfile() {
 }
 
 app.post('/api/relace-search', async (req, res) => {
+  const startedAt = new Date()
+  const id = globalThis.crypto?.randomUUID?.() ?? `run_${Date.now()}`
   try {
     const repoPathRaw = typeof req.body?.repoPath === 'string' ? req.body.repoPath : 'examples/example-repo'
     const query = typeof req.body?.query === 'string' ? req.body.query : 'How is user authentication handled in this codebase?'
@@ -33,7 +36,39 @@ app.post('/api/relace-search', async (req, res) => {
 
     const apiKey = await readApiKeyFromDotfile()
     const result = await runRelaceSearch({ apiKey, repoRoot, userQuery: query })
+    await appendSearchRunLog({
+      id,
+      startedAt: startedAt.toISOString(),
+      durationMs: Date.now() - startedAt.getTime(),
+      repoPath: repoPathRaw,
+      query,
+      ok: true,
+      trace: result.trace,
+      reportFilesCount: Object.keys(result.report.files ?? {}).length,
+    })
     res.json(result)
+  } catch (err: unknown) {
+    console.error(err)
+    const message = err instanceof Error ? err.message : String(err)
+    await appendSearchRunLog({
+      id,
+      startedAt: startedAt.toISOString(),
+      durationMs: Date.now() - startedAt.getTime(),
+      repoPath: typeof req.body?.repoPath === 'string' ? req.body.repoPath : 'examples/example-repo',
+      query: typeof req.body?.query === 'string' ? req.body.query : '',
+      ok: false,
+      error: message,
+    })
+    res.status(500).json({ error: message })
+  }
+})
+
+app.get('/api/relace-search/logs', async (req, res) => {
+  try {
+    const limitRaw = typeof req.query?.limit === 'string' ? Number(req.query.limit) : 50
+    const limit = Number.isFinite(limitRaw) ? limitRaw : 50
+    const entries = await readRecentSearchRunLogs(limit)
+    res.json({ entries })
   } catch (err: unknown) {
     console.error(err)
     const message = err instanceof Error ? err.message : String(err)
