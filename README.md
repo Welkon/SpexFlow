@@ -16,10 +16,6 @@ It’s optimized for **“finish one well-defined feature in one shot”** rathe
 
 ![SpecFlow minimal workflow](docs/images/specflow-minimal-workflow.png)
 
-**A larger workflow graph** (instruction → search conductor → parallel code searches → context → LLM):
-
-![SpecFlow overview](docs/images/specflow-overview.png)
-
 **A larger canvas** where you keep reusable context blocks and rerun only the parts that changed:
 
 ![SpecFlow workflow](docs/images/specflow-workflow.png)
