@@ -19,11 +19,31 @@ function repoLabel(repoPath: string) {
   return parts[parts.length - 1] ?? normalized
 }
 
-const STATUS_STYLE: Record<NodeStatus, { background: string; borderColor: string }> = {
-  idle: { background: '#fff', borderColor: '#d0d0d0' },
-  running: { background: '#fff7d1', borderColor: '#f2c94c' },
-  success: { background: '#eaffea', borderColor: '#27ae60' },
-  error: { background: '#ffecec', borderColor: '#eb5757' },
+function parseHexColor(color: string): { r: number; g: number; b: number } | null {
+  const raw = (color || '').trim()
+  if (!raw) return null
+  const m = raw.match(/^#([0-9a-fA-F]{6})$/)
+  if (!m) return null
+  const hex = m[1]
+  const r = Number.parseInt(hex.slice(0, 2), 16)
+  const g = Number.parseInt(hex.slice(2, 4), 16)
+  const b = Number.parseInt(hex.slice(4, 6), 16)
+  if (![r, g, b].every(Number.isFinite)) return null
+  return { r, g, b }
+}
+
+function nodeSurfaceFromCustomColor(customColor?: string): { background: string; borderColor: string } {
+  if (!customColor) return { background: '#fff', borderColor: '#d0d0d0' }
+  const rgb = parseHexColor(customColor)
+  if (!rgb) {
+    console.warn(`Invalid customColor: ${customColor}`)
+    return { background: '#fff', borderColor: '#d0d0d0' }
+  }
+  const { r, g, b } = rgb
+  return {
+    background: `linear-gradient(180deg, rgba(${r}, ${g}, ${b}, 0.18), rgba(255, 255, 255, 0.98))`,
+    borderColor: `rgba(${r}, ${g}, ${b}, 0.55)`,
+  }
 }
 
 const STATUS_PILL: Record<
@@ -40,20 +60,23 @@ const HANDLE_STYLE = { width: 10, height: 10, background: '#666' } as const
 
 function NodeShell(props: {
   title: string
+  customName?: string
+  customColor?: string
   status: NodeStatus
   subtitle: string
   selected: boolean
   locked: boolean
   muted: boolean
 }) {
-  const style = STATUS_STYLE[props.status]
   const pill = STATUS_PILL[props.status]
+  const displayTitle = (props.customName ?? '').trim() || props.title
+  const surface = nodeSurfaceFromCustomColor(props.customColor)
   return (
     <div
       style={{
         width: 220,
-        border: `2px solid ${style.borderColor}`,
-        background: style.background,
+        border: `2px solid ${surface.borderColor}`,
+        background: surface.background,
         borderRadius: 10,
         padding: 10,
         fontSize: 12,
@@ -75,7 +98,7 @@ function NodeShell(props: {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {props.title}
+            {displayTitle}
           </span>
           {props.locked && (
             <span
@@ -145,6 +168,8 @@ export function CodeSearchNodeView({ data, selected }: NodeProps<CodeSearchNode>
   return (
     <NodeShell
       title={data.title}
+      customName={data.customName}
+      customColor={data.customColor}
       status={data.status}
       subtitle={subtitle}
       selected={selected}
@@ -161,6 +186,8 @@ export function ContextConverterNodeView({
   return (
     <NodeShell
       title={data.title}
+      customName={data.customName}
+      customColor={data.customColor}
       status={data.status}
       subtitle={data.fullFile ? 'full files' : 'line ranges'}
       selected={selected}
@@ -179,6 +206,8 @@ export function LLMNodeView({ data, selected }: NodeProps<LLMNode>) {
   return (
     <NodeShell
       title={data.title}
+      customName={data.customName}
+      customColor={data.customColor}
       status={data.status}
       subtitle={subtitle}
       selected={selected}
@@ -196,6 +225,8 @@ export function InstructionNodeView({ data, selected }: NodeProps<InstructionNod
   return (
     <NodeShell
       title={data.title}
+      customName={data.customName}
+      customColor={data.customColor}
       status={data.status}
       subtitle={subtitle}
       selected={selected}
@@ -219,6 +250,8 @@ export function CodeSearchConductorNodeView({
   return (
     <NodeShell
       title={data.title}
+      customName={data.customName}
+      customColor={data.customColor}
       status={data.status}
       subtitle={subtitle}
       selected={selected}
@@ -236,6 +269,8 @@ export function ManualImportNodeView({ data, selected }: NodeProps<ManualImportN
   return (
     <NodeShell
       title={data.title}
+      customName={data.customName}
+      customColor={data.customColor}
       status={data.status}
       subtitle={subtitle}
       selected={selected}

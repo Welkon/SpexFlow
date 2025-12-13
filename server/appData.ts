@@ -108,12 +108,17 @@ function normalizeNode(raw: unknown): AppNode | null {
   const x = typeof position.x === 'number' ? position.x : 0
   const y = typeof position.y === 'number' ? position.y : 0
 
+  const customNameRaw = normalizeString(data.customName, '').trim()
+  const customColorRaw = normalizeString(data.customColor, '').trim()
+
   const base = {
     title: normalizeString(data.title, type),
     status: normalizeStatus(data.status),
     error: typeof data.error === 'string' ? data.error : null,
     locked: normalizeBool(data.locked, false),
     muted: normalizeBool(data.muted, false),
+    customName: customNameRaw ? customNameRaw : undefined,
+    customColor: customColorRaw ? customColorRaw : undefined,
   }
 
   if (type === 'code-search') {

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { AppNode, APISettings } from '../types'
 import { resetNodeRuntime } from '../utils'
 import { ExpandableTextarea } from './ExpandableTextarea'
@@ -34,6 +34,8 @@ export function NodeSidebar({
   const [isOutputModalOpen, setIsOutputModalOpen] = useState(false)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [showManualRepoRequired, setShowManualRepoRequired] = useState(false)
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState('')
 
   const getOutputText = useCallback(() => {
     if (!selectedNode) return ''
@@ -43,11 +45,19 @@ export function NodeSidebar({
     return JSON.stringify(out, null, 2)
   }, [selectedNode])
 
+  useEffect(() => {
+    if (!selectedNode) return
+    setIsEditingName(false)
+    setNameDraft((selectedNode.data.customName ?? '').trim())
+  }, [selectedNode?.id])
+
   // Multi-select: don't show sidebar (use MultiSelectInfo instead)
   if (multiSelectCount > 1) return null
   if (!selectedNode) return null
 
   const isLocked = !!selectedNode.data.locked
+  const customName = (selectedNode.data.customName ?? '').trim()
+  const customColor = (selectedNode.data.customColor ?? '').trim()
   const manualRepoPathTrimmed =
     selectedNode.type === 'manual-import' ? (selectedNode.data.repoPath ?? '').trim() : ''
 
@@ -56,31 +66,117 @@ export function NodeSidebar({
   return (
     <div className="sfSidebar">
       <div className="sfSidebarContent">
-        {/* Header */}
-        <div className="sfHeader">{selectedNode.data.title}</div>
+        <div className="sfNodeMetaBlock">
+          <div className="sfNodeMetaLine">
+            <span className="sfNodeMetaKey">{t(language, 'sidebar_type')}:</span>
+            <span className="sfNodeMetaVal" title={selectedNode.type}>
+              {selectedNode.type}
+            </span>
+          </div>
 
-        {/* Lock toggle - inline */}
-        <InlineCheckbox
-          label={t(language, 'sidebar_locked')}
-          checked={isLocked}
-          onChange={(checked) =>
-            patchSelectedNode((n) => ({ ...n, data: { ...n.data, locked: checked } }) as AppNode)
-          }
-        />
+          <div className="sfNodeMetaLine">
+            <span className="sfNodeMetaKey">{t(language, 'sidebar_name')}:</span>
+            {isEditingName ? (
+              <input
+                className="sfInlineEditInput"
+                value={nameDraft}
+                autoFocus
+                disabled={isLocked}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setIsEditingName(false)
+                    setNameDraft(customName)
+                    return
+                  }
+                  if (e.key === 'Enter') {
+                    const next = nameDraft.trim()
+                    patchSelectedNode(
+                      (n) =>
+                        ({ ...n, data: { ...n.data, customName: next ? next : undefined } }) as AppNode,
+                    )
+                    setIsEditingName(false)
+                  }
+                }}
+                onBlur={() => {
+                  const next = nameDraft.trim()
+                  patchSelectedNode(
+                    (n) =>
+                      ({ ...n, data: { ...n.data, customName: next ? next : undefined } }) as AppNode,
+                  )
+                  setIsEditingName(false)
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                className="sfInlineEditBtn"
+                disabled={isLocked}
+                onClick={() => {
+                  if (isLocked) return
+                  setNameDraft(customName)
+                  setIsEditingName(true)
+                }}
+                title={t(language, 'sidebar_name_click')}
+              >
+                {customName ? customName : t(language, 'sidebar_name_click')}
+              </button>
+            )}
+          </div>
 
-        {/* Mute toggle - inline */}
-        <InlineCheckbox
-          label={t(language, 'sidebar_muted')}
-          checked={!!selectedNode.data.muted}
-          onChange={(checked) =>
-            patchSelectedNode((n) => ({ ...n, data: { ...n.data, muted: checked } }) as AppNode)
-          }
-        />
+          <div className="sfNodeMetaLine">
+            <span className="sfNodeMetaKey">{t(language, 'sidebar_color')}:</span>
+            <div className="sfColorSwatches">
+              {['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#06B6D4', '#EC4899', '#64748B'].map(
+                (c) => {
+                  const isActive = customColor.toLowerCase() === c.toLowerCase()
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      className={`sfColorSwatch${isActive ? ' sfColorSwatchActive' : ''}`}
+                      style={{ background: c }}
+                      disabled={isLocked}
+                      onClick={() => {
+                        if (isLocked) return
+                        patchSelectedNode(
+                          (n) =>
+                            ({
+                              ...n,
+                              data: { ...n.data, customColor: isActive ? undefined : c },
+                            }) as AppNode,
+                        )
+                      }}
+                      title={isActive ? t(language, 'sidebar_color_clear') : c}
+                      aria-label={c}
+                    />
+                  )
+                },
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Lock + Mute toggles */}
+        <div className="sfInlineRow sfInlineRowNoWrap">
+          <InlineCheckbox
+            label={t(language, 'sidebar_locked')}
+            checked={isLocked}
+            onChange={(checked) =>
+              patchSelectedNode((n) => ({ ...n, data: { ...n.data, locked: checked } }) as AppNode)
+            }
+          />
+
+          <InlineCheckbox
+            label={t(language, 'sidebar_muted')}
+            checked={!!selectedNode.data.muted}
+            onChange={(checked) =>
+              patchSelectedNode((n) => ({ ...n, data: { ...n.data, muted: checked } }) as AppNode)
+            }
+          />
+        </div>
 
         <div className="sfSectionDivider" />
-
-        {/* Settings Section */}
-        <div className="sfSectionTitle">{t(language, 'sidebar_settings')}</div>
 
         {/* Code Search Node */}
         {selectedNode.type === 'code-search' && (

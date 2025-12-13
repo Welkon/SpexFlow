@@ -12,6 +12,8 @@ export type BaseNodeData = {
   error: string | null
   locked: boolean
   muted: boolean
+  customName?: string
+  customColor?: string
 }
 
 export type CodeSearchOutput = {

@@ -442,6 +442,110 @@
   margin-bottom: 10px;
 }
 
+.sfNodeMetaBlock {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.sfNodeMetaLine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.sfNodeMetaLine + .sfNodeMetaLine {
+  margin-top: 6px;
+}
+
+.sfNodeMetaKey {
+  width: 54px;
+  flex: none;
+  color: #666;
+}
+
+.sfNodeMetaVal {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sfInlineEditBtn {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 4px 6px;
+  border: 1px dashed #ddd;
+  border-radius: 8px;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+}
+
+.sfInlineEditBtn:hover:not(:disabled) {
+  border-color: #cfcfcf;
+  background: #fdfdfd;
+}
+
+.sfInlineEditBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sfInlineEditInput {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.sfInlineEditInput:focus {
+  outline: none;
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+.sfColorSwatches {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sfColorSwatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  padding: 0;
+}
+
+.sfColorSwatch:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.sfColorSwatch:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sfColorSwatchActive {
+  outline: 2px solid rgba(26, 115, 232, 0.55);
+  outline-offset: 2px;
+}
+
+.sfInlineRowNoWrap {
+  flex-wrap: nowrap;
+}
+
 .sfSectionTitle {
   margin-top: 10px;
   margin-bottom: 6px;
@@ -639,6 +743,13 @@
 .sfInlineCheckbox:has(input:disabled) {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.sfInlineRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 /* ===== Copy Button ===== */
