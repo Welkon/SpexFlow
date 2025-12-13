@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react'
 import type { AppData, AppNode, CodeSearchOutput } from '../types'
-import { buildRepoContext, runCodeSearch, runConductor, runLLM } from '../api'
+import { buildRepoContext, runCodeSearch, runConductor, runLLM, resolveManualImport } from '../api'
 import {
   ChainCancelledError,
   getActiveTab,
@@ -66,6 +66,11 @@ export function useNodeRunner(
         ? { kind: 'code-search', value: node.data.output, repoPath: node.data.repoPath }
         : null
     }
+    if (node.type === 'manual-import') {
+      return node.data.output
+        ? { kind: 'code-search', value: node.data.output, repoPath: node.data.repoPath }
+        : null
+    }
     if (node.type === 'code-search-conductor') {
       return node.data.output ? { kind: 'conductor', value: node.data.output } : null
     }
@@ -124,7 +129,7 @@ export function useNodeRunner(
       if (local?.kind === 'code-search') return local.value
 
       if (!n) return null
-      if (n.type === 'code-search') return n.data.output
+      if (n.type === 'code-search' || n.type === 'manual-import') return n.data.output
       return null
     },
     [appDataRef],
@@ -142,7 +147,7 @@ export function useNodeRunner(
       if (local?.kind === 'code-search' && typeof local.repoPath === 'string') return local.repoPath
 
       if (!n) return ''
-      if (n.type === 'code-search') return n.data.repoPath
+      if (n.type === 'code-search' || n.type === 'manual-import') return n.data.repoPath
       return ''
     },
     [appDataRef],
@@ -439,14 +444,39 @@ export function useNodeRunner(
             return out
           }
 
+          if (node.type === 'manual-import') {
+            throwIfAborted(signal)
+            const repoPath = (node.data.repoPath || '').trim()
+            if (!repoPath) throw new Error('Empty repoPath')
+            const items = Array.isArray(node.data.items) ? node.data.items : []
+            if (items.length === 0) throw new Error('No items selected')
+
+            throwIfAborted(signal)
+            const result = await resolveManualImport({ repoPath, items, signal })
+
+            patchNodeById(nodeId, (n) => {
+              if (n.type !== 'manual-import') return n
+              return {
+                ...n,
+                data: {
+                  ...n.data,
+                  output: result.report,
+                  status: 'success',
+                  error: null,
+                },
+              }
+            })
+
+            const out: LocalOutput = { kind: 'code-search', value: result.report, repoPath }
+            localOutputs?.set(nodeId, out)
+            return out
+          }
+
           if (node.type === 'context-converter') {
             throwIfAborted(signal)
-            const searchPreds = preds.filter((p) => p.type === 'code-search') as Extract<
-              AppNode,
-              { type: 'code-search' }
-            >[]
+            const searchPreds = preds.filter((p) => p.type === 'code-search' || p.type === 'manual-import')
             if (searchPreds.length === 0)
-              throw new Error('Context converter requires a code-search predecessor.')
+              throw new Error('Context converter requires a code-search/manual-import predecessor.')
 
             const contexts = await Promise.all(
               searchPreds.map(async (p) => {

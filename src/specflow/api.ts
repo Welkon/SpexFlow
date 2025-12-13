@@ -1,4 +1,5 @@
 import type { AppData, CodeSearchOutput } from './types'
+import type { ManualImportItem } from '../../shared/appDataTypes'
 
 export async function fetchAppData(): Promise<AppData> {
   const res = await fetch('/api/app-data')
@@ -48,6 +49,43 @@ export async function runCodeSearch(args: { repoPath: string; query: string; deb
   }
   if (!data) throw new Error(`Invalid JSON from /api/relace-search (HTTP ${res.status})`)
   return data as { report: CodeSearchOutput; trace: { turn: number; toolCalls: string[] }[] }
+}
+
+export async function listRepoDir(args: { repoPath: string; dir: string; signal?: AbortSignal }) {
+  const url = new URL('/api/repo-dir', window.location.origin)
+  url.searchParams.set('repoPath', args.repoPath)
+  url.searchParams.set('dir', args.dir)
+  const res = await fetch(url.toString(), { signal: args.signal })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(typeof data?.error === 'string' ? data.error : JSON.stringify(data))
+  }
+  return data as {
+    dir: string
+    entries: { kind: 'file' | 'dir'; name: string; relPath: string }[]
+    trustedExtensions: string[]
+  }
+}
+
+export async function resolveManualImport(args: {
+  repoPath: string
+  items: ManualImportItem[]
+  signal?: AbortSignal
+}) {
+  const res = await fetch('/api/manual-import/resolve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repoPath: args.repoPath, items: args.items }),
+    signal: args.signal,
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(typeof data?.error === 'string' ? data.error : JSON.stringify(data))
+  }
+  if (!data || typeof data !== 'object') throw new Error('Invalid /api/manual-import/resolve response')
+  const report = (data as { report?: unknown }).report
+  if (!report || typeof report !== 'object') throw new Error('Invalid /api/manual-import/resolve response: missing report')
+  return data as { report: CodeSearchOutput }
 }
 
 export async function buildRepoContext(args: {

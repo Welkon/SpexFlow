@@ -19,6 +19,8 @@ const EN: Dict = {
   toolbar_llm_desc: 'Process context through a language model to generate responses',
   toolbar_reset: 'Reset Canvas',
   toolbar_reset_desc: 'Clear all node outputs and reset the canvas to idle state',
+  toolbar_manual_import: 'Manual Import',
+  toolbar_manual_import_desc: 'Select local files/folders (no external search)',
 
   settings: 'Settings',
   settings_title: 'Settings',
@@ -54,6 +56,26 @@ const EN: Dict = {
   cancel: 'Cancel',
   save_settings: 'Save',
   close: 'Close',
+
+  manual_import: 'Manual Import',
+  manual_import_repo_path: 'Repository Path',
+  manual_import_pick: 'Pick Files / Folders',
+  manual_import_selected_items: 'Selected Items',
+  manual_import_selected_none: 'None selected',
+  manual_import_remove: 'Remove',
+  manual_import_dir_note: 'Folders are non-recursive. Only trusted extensions are included.',
+  manual_import_repo_required: 'Repository Path is required.',
+  manual_import_pick_title: 'Pick Files / Folders',
+  manual_import_filter_placeholder: 'Filter current folder...',
+  manual_import_trusted_exts: 'Trusted extensions',
+  manual_import_loading: 'Loading...',
+  manual_import_entries: 'Entries',
+  manual_import_empty_dir: 'Empty folder (or no trusted files).',
+  manual_import_root: 'Root',
+  manual_import_up: 'Up',
+  manual_import_selected: 'Selected',
+  manual_import_selected_empty: 'Select files or folders from the left.',
+  manual_import_done: 'Done',
 }
 
 const ZH: Dict = {
@@ -73,6 +95,8 @@ const ZH: Dict = {
   toolbar_llm_desc: '把上下文交给模型生成输出',
   toolbar_reset: '重置画布',
   toolbar_reset_desc: '清空所有节点输出并重置为 idle 状态',
+  toolbar_manual_import: '手动导入',
+  toolbar_manual_import_desc: '选择本地文件/文件夹（不做外部搜索）',
 
   settings: '设置',
   settings_title: '设置',
@@ -108,6 +132,26 @@ const ZH: Dict = {
   cancel: '取消',
   save_settings: '保存',
   close: '关闭',
+
+  manual_import: '手动导入',
+  manual_import_repo_path: '仓库路径',
+  manual_import_pick: '选择文件/文件夹',
+  manual_import_selected_items: '已选择',
+  manual_import_selected_none: '未选择任何项',
+  manual_import_remove: '移除',
+  manual_import_dir_note: '文件夹不递归；只会包含信任后缀名的文件。',
+  manual_import_repo_required: '需要填写仓库路径。',
+  manual_import_pick_title: '选择文件/文件夹',
+  manual_import_filter_placeholder: '过滤当前目录...',
+  manual_import_trusted_exts: '信任后缀',
+  manual_import_loading: '加载中...',
+  manual_import_entries: '目录内容',
+  manual_import_empty_dir: '目录为空（或没有符合后缀的文件）。',
+  manual_import_root: '根目录',
+  manual_import_up: '上级',
+  manual_import_selected: '已选择',
+  manual_import_selected_empty: '在左侧选择文件或文件夹。',
+  manual_import_done: '完成',
 }
 
 function getDict(language: Language): Dict {

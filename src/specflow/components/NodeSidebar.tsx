@@ -6,6 +6,9 @@ import { InlineCheckbox } from './InlineCheckbox'
 import { CopyButton } from './CopyButton'
 import { ModelSelect } from './ModelSelect'
 import { OutputViewerModal } from './OutputViewerModal'
+import { RepoPickerModal } from './RepoPickerModal'
+import { t } from '../i18n'
+import type { ManualImportItem, Language } from '../../../shared/appDataTypes'
 
 type Props = {
   selectedNode: AppNode | null
@@ -15,6 +18,7 @@ type Props = {
   runNode: (nodeId: string) => void
   runFrom: (nodeId: string) => void
   apiSettings: APISettings
+  language: Language
 }
 
 export function NodeSidebar({
@@ -25,15 +29,17 @@ export function NodeSidebar({
   runNode,
   runFrom,
   apiSettings,
+  language,
 }: Props) {
   const [isOutputModalOpen, setIsOutputModalOpen] = useState(false)
+  const [isPickerOpen, setIsPickerOpen] = useState(false)
 
   const getOutputText = useCallback(() => {
     if (!selectedNode) return ''
-    if (selectedNode.type === 'code-search' || selectedNode.type === 'code-search-conductor') {
-      return selectedNode.data.output ? JSON.stringify(selectedNode.data.output, null, 2) : ''
-    }
-    return selectedNode.data.output ?? ''
+    const out = selectedNode.data.output
+    if (out === null || out === undefined) return ''
+    if (typeof out === 'string') return out
+    return JSON.stringify(out, null, 2)
   }, [selectedNode])
 
   // Multi-select: don't show sidebar (use MultiSelectInfo instead)
@@ -41,6 +47,8 @@ export function NodeSidebar({
   if (!selectedNode) return null
 
   const isLocked = !!selectedNode.data.locked
+  const manualRepoPathTrimmed =
+    selectedNode.type === 'manual-import' ? (selectedNode.data.repoPath ?? '').trim() : ''
 
   return (
     <div className="sfSidebar">
@@ -111,6 +119,86 @@ export function NodeSidebar({
                 )
               }
               disabled={isLocked}
+            />
+          </>
+        )}
+
+        {/* Manual Import Node */}
+        {selectedNode.type === 'manual-import' && (
+          <>
+            <div className="sfFieldGroup">
+              <label className="sfFieldLabel">{t(language, 'manual_import_repo_path')}</label>
+              <input
+                className="sfInput"
+                value={selectedNode.data.repoPath ?? ''}
+                disabled={isLocked}
+                onChange={(e) =>
+                  patchSelectedNode((n) =>
+                    n.type === 'manual-import' ? { ...n, data: { ...n.data, repoPath: e.target.value } } : n,
+                  )
+                }
+                placeholder="e.g., examples/example-repo"
+              />
+            </div>
+
+            <div className="sfFieldGroup">
+              <label className="sfFieldLabel">{t(language, 'manual_import_selected_items')}</label>
+              <button
+                className="sfAddBtn"
+                onClick={() => setIsPickerOpen(true)}
+                disabled={isLocked || !manualRepoPathTrimmed}
+              >
+                {t(language, 'manual_import_pick')}
+              </button>
+              <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
+                {t(language, 'manual_import_dir_note')}
+              </div>
+
+              <div style={{ marginTop: 10 }}>
+                {selectedNode.data.items?.length ? (
+                  selectedNode.data.items.map((it: ManualImportItem) => (
+                    <div
+                      key={`${it.kind}:${it.relPath}`}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}
+                    >
+                      <span style={{ width: 18 }}>{it.kind === 'dir' ? '📁' : '📄'}</span>
+                      <span style={{ fontSize: 12, flex: 1 }} title={it.relPath}>
+                        {it.relPath}
+                      </span>
+                      <button
+                        className="sfRemoveBtn"
+                        onClick={() =>
+                          patchSelectedNode((n) => {
+                            if (n.type !== 'manual-import') return n
+                            const next = (n.data.items ?? []).filter((x) => !(x.kind === it.kind && x.relPath === it.relPath))
+                            return { ...n, data: { ...n.data, items: next } }
+                          })
+                        }
+                        disabled={isLocked}
+                        title={t(language, 'manual_import_remove')}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ fontSize: 12, opacity: 0.7 }}>{t(language, 'manual_import_selected_none')}</div>
+                )}
+              </div>
+            </div>
+
+            <RepoPickerModal
+              isOpen={isPickerOpen}
+              repoPath={selectedNode.data.repoPath ?? ''}
+              language={language}
+              initialItems={selectedNode.data.items ?? []}
+              onClose={() => setIsPickerOpen(false)}
+              onConfirm={(items) => {
+                patchSelectedNode((n) =>
+                  n.type === 'manual-import' ? { ...n, data: { ...n.data, items } } : n,
+                )
+                setIsPickerOpen(false)
+              }}
             />
           </>
         )}

@@ -7,18 +7,20 @@ SpecFlow loads a local code repo and lets you run a small node-based workflow:
 - **Instruction** → produce/compose plain text input
 - **Code Search Conductor** → generate multiple complementary search queries (one per downstream Code Search node)
 - **Code Search** (Relace fast agentic search) → returns `{ explanation, files }`
+- **Manual Import** → select files/folders and produce the same `{ explanation, files }` shape (no external search)
 - **Context Converter** → turns file ranges into line-numbered text context
 - **LLM** → takes context + prompt and generates an output (spec/plan/etc.)
 
 ## Node Types & Connection Rules
 
-| Source (output) ↓ \\ Target (input) → | instruction | code-search-conductor | code-search | context-converter | llm |
-|--------------------------------------|:-----------:|:---------------------:|:-----------:|:-----------------:|:---:|
-| **instruction**                      | ✅          | ✅                    | ✅          | ❌                | ✅  |
-| **code-search-conductor**            | ❌          | ❌                    | ✅          | ❌                | ❌  |
-| **code-search**                      | ❌          | ❌                    | ❌          | ✅                | ❌  |
-| **context-converter**                | ✅          | ✅                    | ✅          | ❌                | ✅  |
-| **llm**                              | ✅          | ✅                    | ✅          | ❌                | ✅  |
+| Source (output) ↓ \\ Target (input) → | instruction | code-search-conductor | manual-import | code-search | context-converter | llm |
+|--------------------------------------|:-----------:|:---------------------:|:------------:|:-----------:|:-----------------:|:---:|
+| **instruction**                      | ✅          | ✅                    | ❌           | ✅          | ❌                | ✅  |
+| **code-search-conductor**            | ❌          | ❌                    | ❌           | ✅          | ❌                | ❌  |
+| **manual-import**                    | ❌          | ❌                    | ❌           | ❌          | ✅                | ❌  |
+| **code-search**                      | ❌          | ❌                    | ❌           | ❌          | ✅                | ❌  |
+| **context-converter**                | ✅          | ✅                    | ❌           | ✅          | ❌                | ✅  |
+| **llm**                              | ✅          | ✅                    | ❌           | ✅          | ❌                | ✅  |
 
 Typical workflows:
 
@@ -28,6 +30,10 @@ instruction → code-search → context-converter → llm
 
 ```
 instruction → code-search-conductor → code-search → context-converter → llm
+```
+
+```
+manual-import → context-converter → llm
 ```
 
 ## Dev
@@ -41,6 +47,13 @@ instruction → code-search-conductor → code-search → context-converter → 
 - Code Search (Relace): set via **Settings** UI (recommended), or fallback `.apikey`
 - LLM: configure providers/models in **Settings** (OpenAI-compatible endpoints). If not configured, server falls back to OpenRouter via `.llmkey`
 - UI language: toggle in **Settings** (English / 中文)
+
+## Manual Import
+
+- Folders are non-recursive (only direct child files are included).
+- Only “trusted” file extensions are included (currently hardcoded in `server/repoBrowser.ts`).
+- No file contents are persisted; every run validates paths on disk and Context Converter reads files on demand.
+- Node type id: `manual-import` (outputs the same `{ explanation, files }` shape as Code Search).
 
 ## Warning: Huge Search Outputs
 

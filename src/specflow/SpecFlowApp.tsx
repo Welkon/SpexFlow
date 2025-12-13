@@ -9,6 +9,7 @@ import {
   HandIcon,
   SelectIcon,
   SearchIcon,
+  ImportIcon,
   ConductorIcon,
   DocumentIcon,
   InstructionIcon,
@@ -24,6 +25,7 @@ import {
   ContextConverterNodeView,
   InstructionNodeView,
   LLMNodeView,
+  ManualImportNodeView,
 } from './nodes'
 
 export function SpecFlowApp() {
@@ -132,6 +134,7 @@ export function SpecFlowApp() {
       'context-converter': ContextConverterNodeView,
       instruction: InstructionNodeView,
       llm: LLMNodeView,
+      'manual-import': ManualImportNodeView,
     }),
     [],
   )
@@ -229,6 +232,12 @@ export function SpecFlowApp() {
               onClick={() => addNode('code-search', liveViewportRef.current)}
             />
             <ToolbarButton
+              icon={<ImportIcon />}
+              label={t(language, 'toolbar_manual_import')}
+              description={t(language, 'toolbar_manual_import_desc')}
+              onClick={() => addNode('manual-import', liveViewportRef.current)}
+            />
+            <ToolbarButton
               icon={<ConductorIcon />}
               label={t(language, 'toolbar_search_conductor')}
               description={t(language, 'toolbar_search_conductor_desc')}
@@ -323,6 +332,7 @@ export function SpecFlowApp() {
             runNode={(nodeId) => runNode(nodeId).catch(() => {})}
             runFrom={(nodeId) => runFrom(nodeId).catch(() => {})}
             apiSettings={appData.apiSettings}
+            language={language}
           />
         )}
       </div>

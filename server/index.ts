@@ -6,6 +6,7 @@ import { loadAppData, saveAppData, getCodeSearchApiKey } from './appData.js'
 import { buildRepoContext } from './repoContext.js'
 import { runOpenRouterChat } from './openRouter.js'
 import { appendSearchRunLog, readRecentSearchRunLogs, readSearchRunDump } from './searchRunLog.js'
+import { listRepoDir, resolveManualImport } from './repoBrowser.js'
 
 const app = express()
 const PORT = 3001
@@ -15,6 +16,12 @@ app.use(express.json({ limit: '10mb' }))
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' })
 })
+
+function resolveRepoRoot(repoPathRaw: string) {
+  return path.isAbsolute(repoPathRaw)
+    ? repoPathRaw
+    : path.join(process.cwd(), repoPathRaw)
+}
 
 async function readApiKeyFromDotfile() {
   const keyPath = path.join(process.cwd(), '.apikey')
@@ -31,9 +38,7 @@ app.post('/api/relace-search', async (req, res) => {
     const query = typeof req.body?.query === 'string' ? req.body.query : 'How is user authentication handled in this codebase?'
     const debugMessages = typeof req.body?.debugMessages === 'boolean' ? req.body.debugMessages : false
 
-    const repoRoot = path.isAbsolute(repoPathRaw)
-      ? repoPathRaw
-      : path.join(process.cwd(), repoPathRaw)
+    const repoRoot = resolveRepoRoot(repoPathRaw)
 
     // Try to get API key from persisted settings first, fall back to .apikey file
     const settingsApiKey = await getCodeSearchApiKey()
@@ -134,12 +139,42 @@ app.post('/api/repo-context', async (req, res) => {
     if (!files || typeof files !== 'object') throw new Error('files must be an object')
     if (typeof fullFile !== 'boolean') throw new Error('fullFile must be a boolean')
 
-    const repoRoot = path.isAbsolute(repoPathRaw)
-      ? repoPathRaw
-      : path.join(process.cwd(), repoPathRaw)
+    const repoRoot = resolveRepoRoot(repoPathRaw)
 
     const text = await buildRepoContext({ repoRoot, explanation, files, fullFile })
     res.json({ text })
+  } catch (err: unknown) {
+    console.error(err)
+    const message = err instanceof Error ? err.message : String(err)
+    res.status(500).json({ error: message })
+  }
+})
+
+app.get('/api/repo-dir', async (req, res) => {
+  try {
+    const repoPathRaw = typeof req.query?.repoPath === 'string' ? req.query.repoPath : ''
+    const dir = typeof req.query?.dir === 'string' ? req.query.dir : ''
+    if (!repoPathRaw.trim()) throw new Error('repoPath is required')
+    const repoRoot = resolveRepoRoot(repoPathRaw)
+    const result = await listRepoDir({ repoRoot, dir })
+    res.json(result)
+  } catch (err: unknown) {
+    console.error(err)
+    const message = err instanceof Error ? err.message : String(err)
+    res.status(500).json({ error: message })
+  }
+})
+
+app.post('/api/manual-import/resolve', async (req, res) => {
+  try {
+    const repoPathRaw = req.body?.repoPath
+    const items = req.body?.items
+    if (typeof repoPathRaw !== 'string' || !repoPathRaw.trim()) throw new Error('repoPath must be a string')
+    if (!Array.isArray(items)) throw new Error('items must be an array')
+
+    const repoRoot = resolveRepoRoot(repoPathRaw)
+    const report = await resolveManualImport({ repoRoot, items })
+    res.json({ report })
   } catch (err: unknown) {
     console.error(err)
     const message = err instanceof Error ? err.message : String(err)

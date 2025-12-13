@@ -77,6 +77,7 @@ const CONNECTION_MATRIX: Record<AppNode['type'], Record<AppNode['type'], boolean
   instruction: {
     instruction: true,
     'code-search-conductor': true,
+    'manual-import': false,
     'code-search': true,
     'context-converter': false,
     llm: true,
@@ -84,13 +85,23 @@ const CONNECTION_MATRIX: Record<AppNode['type'], Record<AppNode['type'], boolean
   'code-search-conductor': {
     instruction: false,
     'code-search-conductor': false,
+    'manual-import': false,
     'code-search': true,
     'context-converter': false,
+    llm: false,
+  },
+  'manual-import': {
+    instruction: false,
+    'code-search-conductor': false,
+    'manual-import': false,
+    'code-search': false,
+    'context-converter': true,
     llm: false,
   },
   'code-search': {
     instruction: false,
     'code-search-conductor': false,
+    'manual-import': false,
     'code-search': false,
     'context-converter': true,
     llm: false,
@@ -98,6 +109,7 @@ const CONNECTION_MATRIX: Record<AppNode['type'], Record<AppNode['type'], boolean
   'context-converter': {
     instruction: true,
     'code-search-conductor': true,
+    'manual-import': false,
     'code-search': true,
     'context-converter': false,
     llm: true,
@@ -105,6 +117,7 @@ const CONNECTION_MATRIX: Record<AppNode['type'], Record<AppNode['type'], boolean
   llm: {
     instruction: true,
     'code-search-conductor': true,
+    'manual-import': false,
     'code-search': true,
     'context-converter': false,
     llm: true,

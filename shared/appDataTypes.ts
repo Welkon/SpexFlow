@@ -19,6 +19,17 @@ export type CodeSearchOutput = {
   files: Record<string, [number, number][]>
 }
 
+export type ManualImportItem = {
+  kind: 'file' | 'dir'
+  relPath: string
+}
+
+export type ManualImportData = BaseNodeData & {
+  repoPath: string
+  items: ManualImportItem[]
+  output: CodeSearchOutput | null
+}
+
 export type CodeSearchData = BaseNodeData & {
   repoPath: string
   query: string

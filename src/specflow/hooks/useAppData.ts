@@ -272,6 +272,21 @@ export function useAppData() {
             output: null,
           },
         }
+      } else if (type === 'manual-import') {
+        node = {
+          ...base,
+          type,
+          data: {
+            title: 'Manual Import',
+            status: 'idle',
+            error: null,
+            locked: false,
+            muted: false,
+            repoPath: '',
+            items: [],
+            output: null,
+          },
+        }
       } else {
         node = {
           ...base,

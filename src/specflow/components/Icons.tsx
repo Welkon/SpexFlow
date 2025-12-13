@@ -94,6 +94,25 @@ export function DocumentIcon({ size = 20 }: IconProps) {
   )
 }
 
+export function ImportIcon({ size = 20 }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+      <path d="M12 11v6" />
+      <path d="M9 14l3 3 3-3" />
+    </svg>
+  )
+}
+
 export function InstructionIcon({ size = 20 }: IconProps) {
   return (
     <svg

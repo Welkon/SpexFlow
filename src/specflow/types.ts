@@ -11,6 +11,8 @@ import type {
   ContextConverterData,
   InstructionData,
   LLMData,
+  ManualImportData,
+  ManualImportItem,
   LLMModel,
   LLMProvider,
   CodeSearchProvider,
@@ -30,6 +32,8 @@ export type {
   ContextConverterData,
   InstructionData,
   LLMData,
+  ManualImportData,
+  ManualImportItem,
   LLMModel,
   LLMProvider,
   CodeSearchProvider,
@@ -42,6 +46,7 @@ export type ContextConverterNode = Node<ContextConverterData, 'context-converter
 export type InstructionNode = Node<InstructionData, 'instruction'>
 export type CodeSearchConductorNode = Node<CodeSearchConductorData, 'code-search-conductor'>
 export type LLMNode = Node<LLMData, 'llm'>
+export type ManualImportNode = Node<ManualImportData, 'manual-import'>
 
 export type AppNode =
   | CodeSearchNode
@@ -49,6 +54,7 @@ export type AppNode =
   | InstructionNode
   | CodeSearchConductorNode
   | LLMNode
+  | ManualImportNode
 
 export type Canvas = CanvasBase<AppNode, Edge>
 export type Tab = TabBase<AppNode, Edge>

@@ -10,6 +10,8 @@ import type {
   ContextConverterData,
   InstructionData,
   LLMData,
+  ManualImportData,
+  ManualImportItem,
   LLMModel,
   LLMProvider,
   CodeSearchProvider,
@@ -32,6 +34,12 @@ export type AppNode =
     type: 'code-search-conductor'
     position: Position
     data: CodeSearchConductorData
+  }
+  | {
+    id: string
+    type: 'manual-import'
+    position: Position
+    data: ManualImportData
   }
   | {
     id: string
@@ -92,6 +100,7 @@ function normalizeNode(raw: unknown): AppNode | null {
   if (
     type !== 'code-search' &&
     type !== 'code-search-conductor' &&
+    type !== 'manual-import' &&
     type !== 'context-converter' &&
     type !== 'instruction' &&
     type !== 'llm'
@@ -147,6 +156,38 @@ function normalizeNode(raw: unknown): AppNode | null {
         ...base,
         model: normalizeString(data.model, 'x-ai/grok-4.1-fast'),
         query: normalizeString(data.query),
+        output: normalizedOutput,
+      },
+    }
+  }
+
+  if (type === 'manual-import') {
+    const itemsRaw = Array.isArray(data.items) ? data.items : []
+    const items: ManualImportItem[] = itemsRaw
+      .map((it: unknown) => {
+        const itObj = asRecord(it)
+        if (!itObj) return null
+        const kind = itObj.kind
+        const relPath = normalizeString(itObj.relPath)
+        if ((kind !== 'file' && kind !== 'dir') || !relPath) return null
+        return { kind, relPath }
+      })
+      .filter(isNonNull)
+
+    const output = asRecord(data.output)
+    const normalizedOutput =
+      output && typeof output.explanation === 'string' && typeof output.files === 'object'
+        ? { explanation: output.explanation, files: output.files as Record<string, [number, number][]> }
+        : null
+
+    return {
+      id,
+      type,
+      position: { x, y },
+      data: {
+        ...base,
+        repoPath: normalizeString(data.repoPath),
+        items,
         output: normalizedOutput,
       },
     }

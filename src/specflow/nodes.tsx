@@ -6,8 +6,17 @@ import type {
   ContextConverterNode,
   InstructionNode,
   LLMNode,
+  ManualImportNode,
   NodeStatus,
 } from './types'
+
+function repoLabel(repoPath: string) {
+  const raw = (repoPath || '').trim()
+  if (!raw) return '(unset)'
+  const normalized = raw.replaceAll('\\', '/').replaceAll(/\/+$/g, '')
+  const parts = normalized.split('/').filter(Boolean)
+  return parts[parts.length - 1] ?? normalized
+}
 
 function statusStyle(status: NodeStatus) {
   if (status === 'running') return { background: '#fff7d1', borderColor: '#f2c94c' }
@@ -62,8 +71,8 @@ function NodeShell(props: {
 export function CodeSearchNodeView({ data, selected }: NodeProps<CodeSearchNode>) {
   const hasQuery = !!data.query?.trim()
   const subtitle = hasQuery
-    ? `repo: ${data.repoPath || '(unset)'}`
-    : `repo: ${data.repoPath || '(unset)'} • (accepts input)`
+    ? `repo: ${repoLabel(data.repoPath)}`
+    : `repo: ${repoLabel(data.repoPath)} • (accepts input)`
   return (
     <NodeShell
       title={data.title}
@@ -138,6 +147,23 @@ export function CodeSearchConductorNodeView({
     : hasQuery
       ? `model: ${data.model || '(unset)'}`
       : `model: ${data.model || '(unset)'} • (accepts input)`
+  return (
+    <NodeShell
+      title={data.title}
+      status={data.status}
+      subtitle={subtitle}
+      selected={selected}
+      locked={!!data.locked}
+      muted={!!data.muted}
+    />
+  )
+}
+
+export function ManualImportNodeView({ data, selected }: NodeProps<ManualImportNode>) {
+  const itemsCount = Array.isArray(data.items) ? data.items.length : 0
+  const subtitle = itemsCount
+    ? `repo: ${repoLabel(data.repoPath)} • ${itemsCount} items`
+    : `repo: ${repoLabel(data.repoPath)} • (pick files)`
   return (
     <NodeShell
       title={data.title}
