@@ -112,6 +112,7 @@ export function useClipboard(
                 canvas: {
                   nodes: [...t.canvas.nodes.map((n) => ({ ...n, selected: false })), ...newNodes],
                   edges: [...t.canvas.edges.map((e) => ({ ...e, selected: false })), ...newEdges],
+                  viewport: t.canvas.viewport,
                 },
               },
         ),

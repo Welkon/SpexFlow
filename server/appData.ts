@@ -1,143 +1,62 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import type {
+  APISettings,
+  AppData as AppDataBase,
+  Canvas as CanvasBase,
+  CodeSearchConductorData,
+  CodeSearchData,
+  ConductorOutput,
+  ContextConverterData,
+  InstructionData,
+  LLMData,
+  LLMModel,
+  LLMProvider,
+  CodeSearchProvider,
+  NodeStatus,
+  Tab as TabBase,
+  Viewport,
+} from '../shared/appDataTypes.js'
 
-export type NodeStatus = 'idle' | 'running' | 'success' | 'error'
-
-export type BaseNodeData = {
-  title: string
-  status: NodeStatus
-  error: string | null
-  locked: boolean
-  muted: boolean
-}
-
-export type CodeSearchOutput = {
-  explanation: string
-  files: Record<string, [number, number][]>
-}
-
-export type CodeSearchData = BaseNodeData & {
-  repoPath: string
-  query: string
-  debugMessages: boolean
-  output: CodeSearchOutput | null
-}
-
-export type ContextConverterData = BaseNodeData & {
-  fullFile: boolean
-  output: string | null
-}
-
-export type InstructionData = BaseNodeData & {
-  text: string
-  output: string | null
-}
-
-export type ConductorOutput = Record<string, string>
-
-export type CodeSearchConductorData = BaseNodeData & {
-  model: string
-  query: string
-  output: ConductorOutput | null
-}
-
-export type LLMData = BaseNodeData & {
-  model: string
-  systemPrompt: string
-  query: string
-  output: string | null
-}
+type Position = { x: number; y: number }
 
 export type AppNode =
   | {
     id: string
     type: 'code-search'
-    position: { x: number; y: number }
+    position: Position
     data: CodeSearchData
   }
   | {
     id: string
     type: 'code-search-conductor'
-    position: { x: number; y: number }
+    position: Position
     data: CodeSearchConductorData
   }
   | {
     id: string
     type: 'context-converter'
-    position: { x: number; y: number }
+    position: Position
     data: ContextConverterData
   }
   | {
     id: string
     type: 'instruction'
-    position: { x: number; y: number }
+    position: Position
     data: InstructionData
   }
   | {
     id: string
     type: 'llm'
-    position: { x: number; y: number }
+    position: Position
     data: LLMData
   }
 
-export type AppEdge = {
-  id: string
-  source: string
-  target: string
-}
+export type AppEdge = { id: string; source: string; target: string }
 
-export type Viewport = {
-  x: number
-  y: number
-  zoom: number
-}
-
-export type Canvas = { nodes: AppNode[]; edges: AppEdge[]; viewport: Viewport }
-
-export type Tab = {
-  id: string
-  name: string
-  createdAt: string
-  canvas: Canvas
-}
-
-// ===== API Settings Types =====
-
-export type LLMModel = {
-  id: string
-  name: string
-}
-
-export type LLMProvider = {
-  id: string
-  name: string
-  endpoint: string
-  apiKey: string
-  models: LLMModel[]
-}
-
-export type CodeSearchProvider = {
-  id: string
-  name: string
-  apiKey: string
-}
-
-export type APISettings = {
-  codeSearch: {
-    activeProvider: string
-    providers: CodeSearchProvider[]
-  }
-  llm: {
-    providers: LLMProvider[]
-  }
-}
-
-export type AppData = {
-  version: number
-  tabs: Tab[]
-  activeTabId: string | null
-  apiSettings: APISettings
-}
+export type Canvas = CanvasBase<AppNode, AppEdge>
+export type Tab = TabBase<AppNode, AppEdge>
+export type AppData = AppDataBase<AppNode, AppEdge>
 
 function normalizeStatus(status: unknown): NodeStatus {
   if (status === 'idle' || status === 'running' || status === 'success' || status === 'error') return status
