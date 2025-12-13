@@ -58,11 +58,15 @@ function NodeShell(props: {
 }
 
 export function CodeSearchNodeView({ data, selected }: NodeProps<CodeSearchNode>) {
+  const hasQuery = !!data.query?.trim()
+  const subtitle = hasQuery
+    ? `repo: ${data.repoPath || '(unset)'}`
+    : `repo: ${data.repoPath || '(unset)'} • (accepts input)`
   return (
     <NodeShell
       title={data.title}
       status={data.status}
-      subtitle={`repo: ${data.repoPath || '(unset)'}`}
+      subtitle={subtitle}
       selected={selected}
       locked={!!data.locked}
     />

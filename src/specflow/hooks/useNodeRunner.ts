@@ -268,6 +268,7 @@ export function useNodeRunner(
 
             let finalQuery = ''
             if (conductorPreds.length === 1) {
+              // Conductor mode: use conductor-assigned query directly
               const conductorId = conductorPreds[0].id
               const map = getConductorOutput(conductorId, localOutputs)
               if (!map) throw new Error('Conductor has no output.')
@@ -277,9 +278,32 @@ export function useNodeRunner(
               }
               finalQuery = assigned.trim()
             } else {
-              const input = concatPredStrings(preds, localOutputs)
-              const query = node.data.query.trim() ? node.data.query.trim() : input.trim()
-              finalQuery = query || window.prompt('Code search query?') || ''
+              // Non-conductor mode: combine predecessor input with user query
+              const predecessorText = concatPredStrings(preds, localOutputs).trim()
+              const userQuery = node.data.query.trim()
+
+              const hasPredecessors = preds.length > 0 && predecessorText.length > 0
+              const hasUserQuery = userQuery.length > 0
+
+              if (!hasPredecessors && !hasUserQuery) {
+                // No predecessors and no user query - prompt for input
+                const prompted = window.prompt('Code search query?') || ''
+                if (!prompted.trim()) {
+                  throw new Error('Code search node requires either predecessor inputs or user query')
+                }
+                finalQuery = prompted.trim()
+              } else {
+                // Combine predecessor text and user query
+                // Format: predecessor context first, then user query
+                const parts: string[] = []
+                if (predecessorText) {
+                  parts.push(predecessorText)
+                }
+                if (userQuery) {
+                  parts.push(userQuery)
+                }
+                finalQuery = parts.join('\n\n')
+              }
             }
             if (!finalQuery.trim()) throw new Error('Empty query')
 
@@ -302,7 +326,7 @@ export function useNodeRunner(
                 data: {
                   ...n.data,
                   repoPath,
-                  query: finalQuery,
+                  // DO NOT overwrite query - keep user's original query
                   output: result.report,
                   status: 'success',
                   error: null,
