@@ -18,6 +18,7 @@ export type CodeSearchOutput = {
 export type CodeSearchData = BaseNodeData & {
   repoPath: string
   query: string
+  debugMessages: boolean
   output: CodeSearchOutput | null
 }
 
@@ -142,6 +143,7 @@ function normalizeNode(raw: unknown): AppNode | null {
         ...base,
         repoPath: normalizeString(data.repoPath),
         query: normalizeString(data.query),
+        debugMessages: normalizeBool(data.debugMessages, false),
         output: normalizedOutput,
       },
     }
@@ -252,6 +254,7 @@ export function defaultAppData(): AppData {
                 locked: false,
                 repoPath: 'examples/example-repo',
                 query: 'How is user authentication handled in this codebase?',
+                debugMessages: false,
                 output: null,
               },
             },

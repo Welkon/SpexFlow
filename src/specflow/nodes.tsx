@@ -1,6 +1,12 @@
 import type { NodeProps } from '@xyflow/react'
 import { Handle, Position } from '@xyflow/react'
-import type { CodeSearchData, ContextConverterData, InstructionData, LLMData, NodeStatus } from './types'
+import type {
+  CodeSearchNode,
+  ContextConverterNode,
+  InstructionNode,
+  LLMNode,
+  NodeStatus,
+} from './types'
 
 function statusStyle(status: NodeStatus) {
   if (status === 'running') return { background: '#fff7d1', borderColor: '#f2c94c' }
@@ -50,7 +56,7 @@ function NodeShell(props: {
   )
 }
 
-export function CodeSearchNodeView({ data, selected }: NodeProps<CodeSearchData>) {
+export function CodeSearchNodeView({ data, selected }: NodeProps<CodeSearchNode>) {
   return (
     <NodeShell
       title={data.title}
@@ -65,7 +71,7 @@ export function CodeSearchNodeView({ data, selected }: NodeProps<CodeSearchData>
 export function ContextConverterNodeView({
   data,
   selected,
-}: NodeProps<ContextConverterData>) {
+}: NodeProps<ContextConverterNode>) {
   return (
     <NodeShell
       title={data.title}
@@ -77,7 +83,7 @@ export function ContextConverterNodeView({
   )
 }
 
-export function LLMNodeView({ data, selected }: NodeProps<LLMData>) {
+export function LLMNodeView({ data, selected }: NodeProps<LLMNode>) {
   return (
     <NodeShell
       title={data.title}
@@ -89,7 +95,7 @@ export function LLMNodeView({ data, selected }: NodeProps<LLMData>) {
   )
 }
 
-export function InstructionNodeView({ data, selected }: NodeProps<InstructionData>) {
+export function InstructionNodeView({ data, selected }: NodeProps<InstructionNode>) {
   const firstLine = (data.text || '').split('\n')[0]?.trim()
   return (
     <NodeShell

@@ -228,6 +228,7 @@ export function SpecFlowApp() {
           locked: false,
           repoPath: '',
           query: '',
+          debugMessages: false,
           output: null,
         },
       }
@@ -375,7 +376,7 @@ export function SpecFlowApp() {
         }
       }
 
-      patchNodeById(nodeId, (n) => ({ ...n, data: { ...n.data, status: 'running', error: null } }))
+      patchNodeById(nodeId, (n) => ({ ...n, data: { ...n.data, status: 'running', error: null } } as AppNode))
 
       try {
         if (node.type === 'instruction') {
@@ -415,7 +416,11 @@ export function SpecFlowApp() {
             repoPath = window.prompt('Repo path?', 'examples/example-repo') || ''
             if (!repoPath.trim()) throw new Error('Empty repoPath')
           }
-          const result = await runCodeSearch({ repoPath, query: finalQuery })
+          const result = await runCodeSearch({
+            repoPath,
+            query: finalQuery,
+            debugMessages: !!node.data.debugMessages,
+          })
           patchNodeById(nodeId, (n) => {
             if (n.type !== 'code-search') return n
             return {
@@ -509,7 +514,7 @@ export function SpecFlowApp() {
         return out
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err)
-        patchNodeById(nodeId, (n) => ({ ...n, data: { ...n.data, status: 'error', error: message } }))
+        patchNodeById(nodeId, (n) => ({ ...n, data: { ...n.data, status: 'error', error: message } } as AppNode))
         throw err
       }
     })()
@@ -652,10 +657,7 @@ export function SpecFlowApp() {
             type="checkbox"
             checked={!!selectedNode.data.locked}
             onChange={(e) =>
-              patchSelectedNode((n) => ({
-                ...n,
-                data: { ...n.data, locked: e.target.checked },
-              }))
+              patchSelectedNode((n) => ({ ...n, data: { ...n.data, locked: e.target.checked } } as AppNode))
             }
           />
         </label>
@@ -693,6 +695,21 @@ export function SpecFlowApp() {
                   )
                 }
                 rows={5}
+              />
+            </label>
+            <label className="sfLabel">
+              <div>debugMessages</div>
+              <input
+                type="checkbox"
+                checked={!!selectedNode.data.debugMessages}
+                disabled={!!selectedNode.data.locked}
+                onChange={(e) =>
+                  patchSelectedNode((n) =>
+                    n.type === 'code-search'
+                      ? { ...n, data: { ...n.data, debugMessages: e.target.checked } }
+                      : n,
+                  )
+                }
               />
             </label>
           </>

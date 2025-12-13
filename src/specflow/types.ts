@@ -17,6 +17,7 @@ export type CodeSearchOutput = {
 export type CodeSearchData = BaseNodeData & {
   repoPath: string
   query: string
+  debugMessages: boolean
   output: CodeSearchOutput | null
 }
 

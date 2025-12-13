@@ -34,6 +34,7 @@ export function defaultCanvas(): Canvas {
         locked: false,
         repoPath: 'examples/example-repo',
         query: 'How is user authentication handled in this codebase?',
+        debugMessages: false,
         output: null,
       },
     },

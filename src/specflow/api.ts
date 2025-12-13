@@ -21,7 +21,7 @@ export async function saveAppData(data: AppData): Promise<void> {
   }
 }
 
-export async function runCodeSearch(args: { repoPath: string; query: string }) {
+export async function runCodeSearch(args: { repoPath: string; query: string; debugMessages?: boolean }) {
   const res = await fetch('/api/relace-search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
