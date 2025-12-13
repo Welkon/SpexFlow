@@ -1,3 +1,7 @@
 export { NodeSidebar } from './NodeSidebar'
 export { ToolbarButton } from './ToolbarButton'
 export { MultiSelectInfo } from './MultiSelectInfo'
+export { TextEditorModal } from './TextEditorModal'
+export { ExpandableTextarea } from './ExpandableTextarea'
+export { InlineCheckbox } from './InlineCheckbox'
+export { CopyButton } from './CopyButton'

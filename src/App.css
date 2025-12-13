@@ -353,6 +353,11 @@
   background: #fff;
 }
 
+.sfSidebarContent {
+  display: flex;
+  flex-direction: column;
+}
+
 .sfHeader {
   font-size: 14px;
   font-weight: 700;
@@ -376,6 +381,8 @@
 
 .sfInput,
 .sfTextarea {
+  width: 100%;
+  box-sizing: border-box;
   font-size: 12px;
   padding: 8px;
   border: 1px solid #ddd;
@@ -481,4 +488,325 @@
 
 .sfMultiSelectActions button:hover {
   background: #f5f5f5;
+}
+
+/* ===== Field Group Layout ===== */
+.sfFieldGroup {
+  margin-bottom: 12px;
+}
+
+.sfFieldHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.sfFieldLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: #555;
+}
+
+/* ===== Expand Button ===== */
+.sfExpandBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sfExpandBtn:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #ccc;
+  color: #333;
+}
+
+.sfExpandBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== Inline Checkbox ===== */
+.sfInlineCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.sfInlineCheckbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #1a73e8;
+}
+
+.sfCheckboxLabel {
+  font-size: 13px;
+  color: #333;
+}
+
+.sfInlineCheckbox:has(input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ===== Copy Button ===== */
+.sfCopyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  color: #555;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sfCopyBtn:hover {
+  background: #f5f5f5;
+  border-color: #ccc;
+}
+
+.sfCopyBtnSuccess {
+  background: #e8f5e9;
+  border-color: #a5d6a7;
+  color: #2e7d32;
+}
+
+/* ===== Modal Styles ===== */
+.sfModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  animation: sfFadeIn 0.15s ease;
+}
+
+@keyframes sfFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.sfModalContent {
+  width: 90%;
+  max-width: 800px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: sfSlideUp 0.2s ease;
+}
+
+@keyframes sfSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sfModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.sfModalTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.sfModalCloseBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #666;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.sfModalCloseBtn:hover {
+  background: #f0f0f0;
+}
+
+.sfModalTextarea {
+  flex: 1;
+  min-height: 300px;
+  margin: 16px 20px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+}
+
+.sfModalTextarea:focus {
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+.sfModalTextarea:disabled {
+  background: #f9f9f9;
+  color: #666;
+}
+
+.sfModalFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  border-top: 1px solid #eee;
+}
+
+.sfModalHint {
+  font-size: 12px;
+  color: #888;
+}
+
+.sfModalSaveBtn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  background: #1a73e8;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.sfModalSaveBtn:hover {
+  background: #1557b0;
+}
+
+/* ===== Section Divider ===== */
+.sfSectionDivider {
+  height: 1px;
+  background: #eee;
+  margin: 16px 0;
+}
+
+/* ===== Button Group ===== */
+.sfButtonGroup {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sfButtonGroup button {
+  flex: 1;
+  min-width: 80px;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.sfButtonGroup button:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.sfButtonGroup button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== Output Section ===== */
+.sfOutputSection {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.sfOutputHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.sfOutputTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sfOutputPreview {
+  padding: 10px;
+  background: #f8f8f8;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Consolas', monospace;
+  color: #555;
+  max-height: 150px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ===== Error Section ===== */
+.sfErrorSection {
+  margin-top: 16px;
+  padding: 12px;
+  background: #fff5f5;
+  border: 1px solid #ffdddd;
+  border-radius: 8px;
+}
+
+.sfErrorTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c53030;
+  margin-bottom: 6px;
+}
+
+.sfErrorMessage {
+  font-size: 12px;
+  color: #c53030;
+  white-space: pre-wrap;
+  word-break: break-word;
 }

@@ -1,4 +1,9 @@
+import { useCallback } from 'react'
 import type { AppNode } from '../types'
+import { resetNodeRuntime } from '../utils'
+import { ExpandableTextarea } from './ExpandableTextarea'
+import { InlineCheckbox } from './InlineCheckbox'
+import { CopyButton } from './CopyButton'
 
 type Props = {
   selectedNode: AppNode | null
@@ -19,223 +24,217 @@ export function NodeSidebar({
 }: Props) {
   // Multi-select: don't show sidebar (use MultiSelectInfo instead)
   if (multiSelectCount > 1) return null
-
-  // Single node view
   if (!selectedNode) return null
+
+  const isLocked = !!selectedNode.data.locked
+
+  const getOutputText = useCallback(() => {
+    if (selectedNode.type === 'code-search' || selectedNode.type === 'code-search-conductor') {
+      return selectedNode.data.output ? JSON.stringify(selectedNode.data.output, null, 2) : ''
+    }
+    return selectedNode.data.output ?? ''
+  }, [selectedNode])
 
   return (
     <div className="sfSidebar">
-      <div>
+      <div className="sfSidebarContent">
+        {/* Header */}
         <div className="sfHeader">{selectedNode.data.title}</div>
 
-        <label className="sfLabel">
-          <div>locked</div>
-          <input
-            type="checkbox"
-            checked={!!selectedNode.data.locked}
-            onChange={(e) =>
-              patchSelectedNode((n) => ({ ...n, data: { ...n.data, locked: e.target.checked } }) as AppNode)
-            }
-          />
-        </label>
+        {/* Lock toggle - inline */}
+        <InlineCheckbox
+          label="Locked"
+          checked={isLocked}
+          onChange={(checked) =>
+            patchSelectedNode((n) => ({ ...n, data: { ...n.data, locked: checked } }) as AppNode)
+          }
+        />
 
+        <div className="sfSectionDivider" />
+
+        {/* Settings Section */}
         <div className="sfSectionTitle">Settings</div>
 
-        {selectedNode.type === 'code-search' ? (
+        {/* Code Search Node */}
+        {selectedNode.type === 'code-search' && (
           <>
-            <label className="sfLabel">
-              repoPath
+            <div className="sfFieldGroup">
+              <label className="sfFieldLabel">Repository Path</label>
               <input
                 className="sfInput"
                 value={selectedNode.data.repoPath ?? ''}
-                disabled={!!selectedNode.data.locked}
+                disabled={isLocked}
                 onChange={(e) =>
                   patchSelectedNode((n) =>
                     n.type === 'code-search' ? { ...n, data: { ...n.data, repoPath: e.target.value } } : n,
                   )
                 }
+                placeholder="e.g., examples/example-repo"
               />
-            </label>
-            <label className="sfLabel">
-              query
-              <textarea
-                className="sfTextarea"
-                value={selectedNode.data.query ?? ''}
-                disabled={!!selectedNode.data.locked}
-                onChange={(e) =>
-                  patchSelectedNode((n) =>
-                    n.type === 'code-search' ? { ...n, data: { ...n.data, query: e.target.value } } : n,
-                  )
-                }
-                rows={5}
-              />
-            </label>
-            <label className="sfLabel">
-              <div>debugMessages</div>
-              <input
-                type="checkbox"
-                checked={!!selectedNode.data.debugMessages}
-                disabled={!!selectedNode.data.locked}
-                onChange={(e) =>
-                  patchSelectedNode((n) =>
-                    n.type === 'code-search'
-                      ? { ...n, data: { ...n.data, debugMessages: e.target.checked } }
-                      : n,
-                  )
-                }
-              />
-            </label>
-          </>
-        ) : null}
+            </div>
 
-        {selectedNode.type === 'code-search-conductor' ? (
-          <label className="sfLabel">
-            model
+            <ExpandableTextarea
+              label="Query"
+              value={selectedNode.data.query ?? ''}
+              onChange={(value) =>
+                patchSelectedNode((n) =>
+                  n.type === 'code-search' ? { ...n, data: { ...n.data, query: value } } : n,
+                )
+              }
+              disabled={isLocked}
+              rows={5}
+              placeholder="Enter your search query..."
+            />
+
+            <InlineCheckbox
+              label="Debug Messages"
+              checked={!!selectedNode.data.debugMessages}
+              onChange={(checked) =>
+                patchSelectedNode((n) =>
+                  n.type === 'code-search' ? { ...n, data: { ...n.data, debugMessages: checked } } : n,
+                )
+              }
+              disabled={isLocked}
+            />
+          </>
+        )}
+
+        {/* Code Search Conductor Node */}
+        {selectedNode.type === 'code-search-conductor' && (
+          <div className="sfFieldGroup">
+            <label className="sfFieldLabel">Model</label>
             <input
               className="sfInput"
               value={selectedNode.data.model ?? ''}
-              disabled={!!selectedNode.data.locked}
+              disabled={isLocked}
               onChange={(e) =>
                 patchSelectedNode((n) =>
                   n.type === 'code-search-conductor' ? { ...n, data: { ...n.data, model: e.target.value } } : n,
                 )
               }
+              placeholder="e.g., gpt-4"
             />
-          </label>
-        ) : null}
+          </div>
+        )}
 
-        {selectedNode.type === 'context-converter' ? (
-          <label className="sfLabel">
-            <div>fullFile</div>
-            <input
-              type="checkbox"
-              checked={!!selectedNode.data.fullFile}
-              disabled={!!selectedNode.data.locked}
-              onChange={(e) =>
-                patchSelectedNode((n) =>
-                  n.type === 'context-converter'
-                    ? { ...n, data: { ...n.data, fullFile: e.target.checked } }
-                    : n,
-                )
-              }
-            />
-          </label>
-        ) : null}
+        {/* Context Converter Node */}
+        {selectedNode.type === 'context-converter' && (
+          <InlineCheckbox
+            label="Full File Mode"
+            checked={!!selectedNode.data.fullFile}
+            onChange={(checked) =>
+              patchSelectedNode((n) =>
+                n.type === 'context-converter' ? { ...n, data: { ...n.data, fullFile: checked } } : n,
+              )
+            }
+            disabled={isLocked}
+          />
+        )}
 
-        {selectedNode.type === 'instruction' ? (
-          <label className="sfLabel">
-            text
-            <textarea
-              className="sfTextarea"
-              value={selectedNode.data.text ?? ''}
-              disabled={!!selectedNode.data.locked}
-              onChange={(e) =>
-                patchSelectedNode((n) =>
-                  n.type === 'instruction' ? { ...n, data: { ...n.data, text: e.target.value } } : n,
-                )
-              }
-              rows={8}
-            />
-          </label>
-        ) : null}
+        {/* Instruction Node */}
+        {selectedNode.type === 'instruction' && (
+          <ExpandableTextarea
+            label="Instruction Text"
+            value={selectedNode.data.text ?? ''}
+            onChange={(value) =>
+              patchSelectedNode((n) =>
+                n.type === 'instruction' ? { ...n, data: { ...n.data, text: value } } : n,
+              )
+            }
+            disabled={isLocked}
+            rows={8}
+            placeholder="Enter instruction text (or leave empty to use predecessor input)..."
+          />
+        )}
 
-        {selectedNode.type === 'llm' ? (
+        {/* LLM Node */}
+        {selectedNode.type === 'llm' && (
           <>
-            <label className="sfLabel">
-              model
+            <div className="sfFieldGroup">
+              <label className="sfFieldLabel">Model</label>
               <input
                 className="sfInput"
                 value={selectedNode.data.model ?? ''}
-                disabled={!!selectedNode.data.locked}
+                disabled={isLocked}
                 onChange={(e) =>
                   patchSelectedNode((n) =>
                     n.type === 'llm' ? { ...n, data: { ...n.data, model: e.target.value } } : n,
                   )
                 }
+                placeholder="e.g., gpt-4"
               />
-            </label>
-            <label className="sfLabel">
-              systemPrompt
-              <textarea
-                className="sfTextarea"
-                value={selectedNode.data.systemPrompt ?? ''}
-                disabled={!!selectedNode.data.locked}
-                onChange={(e) =>
-                  patchSelectedNode((n) =>
-                    n.type === 'llm' ? { ...n, data: { ...n.data, systemPrompt: e.target.value } } : n,
-                  )
-                }
-                rows={6}
-              />
-            </label>
-            <label className="sfLabel">
-              query
-              <textarea
-                className="sfTextarea"
-                value={selectedNode.data.query ?? ''}
-                disabled={!!selectedNode.data.locked}
-                onChange={(e) =>
-                  patchSelectedNode((n) =>
-                    n.type === 'llm' ? { ...n, data: { ...n.data, query: e.target.value } } : n,
-                  )
-                }
-                rows={4}
-              />
-            </label>
+            </div>
+
+            <ExpandableTextarea
+              label="System Prompt"
+              value={selectedNode.data.systemPrompt ?? ''}
+              onChange={(value) =>
+                patchSelectedNode((n) =>
+                  n.type === 'llm' ? { ...n, data: { ...n.data, systemPrompt: value } } : n,
+                )
+              }
+              disabled={isLocked}
+              rows={4}
+              placeholder="Enter system prompt..."
+            />
+
+            <ExpandableTextarea
+              label="Query"
+              value={selectedNode.data.query ?? ''}
+              onChange={(value) =>
+                patchSelectedNode((n) =>
+                  n.type === 'llm' ? { ...n, data: { ...n.data, query: value } } : n,
+                )
+              }
+              disabled={isLocked}
+              rows={4}
+              placeholder="Enter query (or leave empty to use predecessor input)..."
+            />
           </>
-        ) : null}
+        )}
 
-        <div className="sfSectionTitle">Output</div>
-        {selectedNode.data.error ? (
-          <pre className="sfOutput sfOutputError">{selectedNode.data.error}</pre>
-        ) : null}
+        <div className="sfSectionDivider" />
 
-        {selectedNode.type === 'code-search' ? (
-          <pre className="sfOutput">
-            {selectedNode.data.output ? JSON.stringify(selectedNode.data.output, null, 2) : '(no output)'}
-          </pre>
-        ) : null}
-
-        {selectedNode.type === 'code-search-conductor' ? (
-          <pre className="sfOutput">
-            {selectedNode.data.output ? JSON.stringify(selectedNode.data.output, null, 2) : '(no output)'}
-          </pre>
-        ) : null}
-
-        {selectedNode.type === 'context-converter' ? (
-          <pre className="sfOutput">{selectedNode.data.output ?? '(no output)'}</pre>
-        ) : null}
-
-        {selectedNode.type === 'instruction' ? (
-          <pre className="sfOutput">{selectedNode.data.output ?? '(no output)'}</pre>
-        ) : null}
-
-        {selectedNode.type === 'llm' ? (
-          <pre className="sfOutput">{selectedNode.data.output ?? '(no output)'}</pre>
-        ) : null}
-
-        <div className="sfButtons">
-          <button onClick={() => runNode(selectedNode.id)} disabled={!!selectedNode.data.locked}>
+        {/* Actions Section */}
+        <div className="sfSectionTitle">Actions</div>
+        <div className="sfButtonGroup">
+          <button onClick={() => runNode(selectedNode.id)} disabled={isLocked}>
             Run
           </button>
-          <button onClick={() => runFrom(selectedNode.id)} disabled={!!selectedNode.data.locked}>
+          <button onClick={() => runFrom(selectedNode.id)} disabled={isLocked}>
             Chain
           </button>
           <button
-            onClick={() => {
-              const text =
-                selectedNode.type === 'code-search' || selectedNode.type === 'code-search-conductor'
-                  ? selectedNode.data.output
-                    ? JSON.stringify(selectedNode.data.output, null, 2)
-                    : ''
-                  : selectedNode.data.output ?? ''
-              navigator.clipboard.writeText(text)
-            }}
+            onClick={() => patchSelectedNode(resetNodeRuntime)}
+            disabled={isLocked || selectedNode.data.status === 'running'}
           >
-            Copy
+            Reset
           </button>
           <button onClick={deleteSelectedNodes}>Delete</button>
         </div>
+
+        {/* Output Section */}
+        {selectedNode.data.output !== null && selectedNode.data.output !== undefined && (
+          <div className="sfOutputSection">
+            <div className="sfOutputHeader">
+              <span className="sfOutputTitle">Output</span>
+              <CopyButton getText={getOutputText} />
+            </div>
+            <div className="sfOutputPreview">
+              {typeof selectedNode.data.output === 'string'
+                ? selectedNode.data.output.slice(0, 500) + (selectedNode.data.output.length > 500 ? '...' : '')
+                : JSON.stringify(selectedNode.data.output, null, 2).slice(0, 500)}
+            </div>
+          </div>
+        )}
+
+        {/* Error Display */}
+        {selectedNode.data.error && (
+          <div className="sfErrorSection">
+            <div className="sfErrorTitle">Error</div>
+            <div className="sfErrorMessage">{selectedNode.data.error}</div>
+          </div>
+        )}
       </div>
     </div>
   )
