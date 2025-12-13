@@ -2,7 +2,7 @@
 
 [English](README.md) | 简体中文
 
-SpecFlow 是一个基于 React Flow 的可视化 context/spec 工作流工具。它帮助你把一个明确的功能需求变成：
+SpexFlow 是一个基于 React Flow 的可视化 context/spec 工作流工具。它帮助你把一个明确的功能需求变成：
 
 1) 可复用、可缓存的仓库上下文（代码搜索 / 手动选择），再  
 2) 由 LLM 生成的高质量实现方案（spec/plan），再  
@@ -14,15 +14,15 @@ SpecFlow 是一个基于 React Flow 的可视化 context/spec 工作流工具。
 
 **最小工作流**（instruction → code-search → context → LLM）：
 
-![SpecFlow minimal workflow](docs/images/specflow-minimal-workflow.png)
+![SpexFlow minimal workflow](docs/images/specflow-minimal-workflow.png)
 
 **更大的画布**：把一些可复用的 context/指令块当作“积木”保存起来，需要更新时只 rerun 那个节点：
 
-![SpecFlow workflow](docs/images/specflow-workflow.png)
+![SpexFlow workflow](docs/images/specflow-workflow.png)
 
 ## 你能用它做什么
 
-SpecFlow 用来加载本地代码仓库，并用一个小型「节点工作流」跑通：
+SpexFlow 用来加载本地代码仓库，并用一个小型「节点工作流」跑通：
 
 - **Instruction** → 生成/组合纯文本输入
 - **Code Search Conductor** → 为多个下游 Code Search 节点分别生成互补的搜索查询

@@ -2,7 +2,7 @@
 
 English | [简体中文](README.zh.md)
 
-SpecFlow is a visual context/spec workflow tool built on React Flow. It helps you turn a concrete feature request into:
+SpexFlow is a visual context/spec workflow tool built on React Flow. It helps you turn a concrete feature request into:
 
 1) curated repo context (via code search or manual selection), then  
 2) a high-quality implementation plan/spec from an LLM, then  
@@ -14,15 +14,15 @@ It’s optimized for **“finish one well-defined feature in one shot”** rathe
 
 **A minimal workflow** (instruction → code-search → context → LLM):
 
-![SpecFlow minimal workflow](docs/images/specflow-minimal-workflow.png)
+![SpexFlow minimal workflow](docs/images/specflow-minimal-workflow.png)
 
 **A larger canvas** where you keep reusable context blocks and rerun only the parts that changed:
 
-![SpecFlow workflow](docs/images/specflow-workflow.png)
+![SpexFlow workflow](docs/images/specflow-workflow.png)
 
 ## What You Build With It
 
-SpecFlow loads a local code repo and lets you run a small node-based workflow:
+SpexFlow loads a local code repo and lets you run a small node-based workflow:
 
 - **Instruction** → produce/compose plain text input
 - **Code Search Conductor** → generate multiple complementary search queries (one per downstream Code Search node)
