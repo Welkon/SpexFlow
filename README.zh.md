@@ -6,9 +6,9 @@ SpexFlow 是一个基于 React Flow 的可视化 context/spec 工作流工具。
 
 1) 可复用、可缓存的仓库上下文（代码搜索 / 手动选择），再  
 2) 由 LLM 生成的高质量实现方案（spec/plan），再  
-3) 一段可以直接丢给“上下文清空”的 code agent（Codex / Claude Code / 等）的 prompt。
+3) 一段可以直接丢给"上下文清空"的 code agent（Codex / Claude Code / 等）的 prompt。
 
-目标不是“把整套系统一次写完”，而是 **一次性把一个定义清楚的功能点做对**。
+目标不是"把整套系统一次写完"，而是 **一次性把一个定义清楚的功能点做对**。
 
 ## 截图
 
@@ -16,7 +16,7 @@ SpexFlow 是一个基于 React Flow 的可视化 context/spec 工作流工具。
 
 ![SpexFlow minimal workflow](docs/images/specflow-minimal-workflow.png)
 
-**更大的画布**：把一些可复用的 context/指令块当作“积木”保存起来，需要更新时只 rerun 那个节点：
+**更大的画布**：把一些可复用的 context/指令块当作"积木"保存起来，需要更新时只 rerun 那个节点：
 
 ![SpexFlow workflow](docs/images/specflow-workflow.png)
 
@@ -30,6 +30,11 @@ SpexFlow 用来加载本地代码仓库，并用一个小型「节点工作流�
 - **Manual Import** → 手动选择文件/文件夹并产出同样的 `{ explanation, files }` 结构（不做外部搜索）
 - **Context Converter** → 把文件片段转成带行号的文本上下文
 - **LLM** → 输入上下文 + prompt，生成输出（spec/plan 等）
+
+## 前置要求
+
+- Node.js 18+
+- pnpm 9+
 
 ## 快速开始
 
@@ -52,7 +57,7 @@ pnpm dev
 
 点右上角 **Settings**：
 
-- **Code Search**：填 Relace API key
+- **Code Search**：填 Relace API key（[获取方式](https://docs.relace.ai/docs/introduction)）
 - **LLM**：配置 provider / model（需要 OpenAI 兼容的 chat-completions 接口）
 
 ### 4) 跑一条最小工作流
@@ -80,7 +85,7 @@ instruction → code-search → context-converter → llm
 
 ### Locked / Muted
 
-- **Locked**：不可拖拽；Chain 不会 reset 它；适合“稳定的缓存 context”。
+- **Locked**：不可拖拽；Chain 不会 reset 它；适合"稳定的缓存 context"。
 - **Muted**：直接产出空输出（不发 API）；适合临时禁用一个分支。
 
 ## 节点类型
@@ -117,7 +122,7 @@ instruction → code-search → context-converter → llm
   - `items`：选择的文件/文件夹（只保存相对路径；**永远不持久化文件内容**）
 - 文件夹规则：
   - **不递归**：只包含该目录的直接子文件（一级）。
-  - 只包含硬编码的“信任后缀名”（包含 `.md`），见 `server/repoBrowser.ts`。
+  - 只包含硬编码的"信任后缀名"（包含 `.md`），见 `server/repoBrowser.ts`。
 - 运行规则：
   - 每次运行时都会在磁盘上校验路径；如果文件/目录不存在，节点直接报错（fail loudly）。
 - 输出：与 `code-search` 相同的 `{ explanation, files }` 结构，便于 Context Converter 复用。
@@ -183,7 +188,7 @@ manual-import → context-converter → llm
   - **Chain**：跑整个下游
   - **Reset**：清空该节点输出（locked 的节点不会被 reset）
 - 输出：
-  - 预览 + “View All”
+  - 预览 + "View All"
   - 一键复制
 
 ### 多选
@@ -198,7 +203,7 @@ manual-import → context-converter → llm
 - 多个 canvas 用 tab 管理。
 - 全部持久化在 `data.json`。
 
-## Settings（设置）
+## 设置
 
 点右上角 **Settings**：
 
@@ -215,13 +220,6 @@ manual-import → context-converter → llm
   - 删除它可以重置应用状态
 - `logs/relace-search.jsonl`：搜索运行日志（已被 gitignore）
 - `logs/relace-search-runs/<runId>.json`：当启用 `debugMessages` 时保存完整 message dump
-
-## Manual Import（手动导入）
-
-- 文件夹不递归（只包含该目录的直接子文件）。
-- 只包含“信任后缀名”的文件（目前硬编码在 `server/repoBrowser.ts`）。
-- 不会持久化文件内容；每次运行都会在磁盘上校验路径，Context Converter 按需读取文件内容。
-- 节点类型 id：`manual-import`（输出结构与 Code Search 相同：`{ explanation, files }`）。
 
 ## 开发 / 架构
 

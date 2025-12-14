@@ -1,14 +1,14 @@
 ![SpexFlow](docs/images/banner.png)
 
-English | [简体中文](README.zh.md)
+[English](README.md) | [简体中文](README.zh.md)
 
 SpexFlow is a visual context/spec workflow tool built on React Flow. It helps you turn a concrete feature request into:
 
 1) curated repo context (via code search or manual selection), then  
 2) a high-quality implementation plan/spec from an LLM, then  
-3) a clean prompt you can paste into a “fresh-context” code agent (Codex / Claude Code / etc.).
+3) a clean prompt you can paste into a "fresh-context" code agent (Codex / Claude Code / etc.).
 
-It’s optimized for **“finish one well-defined feature in one shot”** rather than “keep everything in your head”.
+It's optimized for **"finish one well-defined feature in one shot"** rather than "keep everything in your head".
 
 ## Screenshots
 
@@ -31,6 +31,11 @@ SpexFlow loads a local code repo and lets you run a small node-based workflow:
 - **Context Converter** → turns file ranges into line-numbered text context
 - **LLM** → takes context + prompt and generates an output (spec/plan/etc.)
 
+## Prerequisites
+
+- Node.js 18+
+- pnpm 9+
+
 ## Quick Start
 
 ### 1) Install
@@ -52,7 +57,7 @@ pnpm dev
 
 Open **Settings** (top-right) and set:
 
-- **Code Search**: Relace API key
+- **Code Search**: Relace API key ([get one here](https://docs.relace.ai/docs/introduction))
 - **LLM providers/models**: add at least one model under a provider with an OpenAI-compatible endpoint
 
 ### 4) Run a minimal workflow
@@ -80,7 +85,7 @@ Then copy the LLM output and paste it into your coding agent.
 
 ### Locked / Muted
 
-- **Locked**: node cannot be dragged and won’t be reset by Chain; useful for “stable cached context”.
+- **Locked**: node cannot be dragged and won't be reset by Chain; useful for "stable cached context".
 - **Muted**: node returns empty output immediately (no API calls); useful for temporarily disabling branches.
 
 ## Node Types
@@ -117,7 +122,7 @@ Then copy the LLM output and paste it into your coding agent.
   - `items`: selected files and folders (stored as relative paths; **contents are never persisted**)
 - Folder behavior:
   - **Non-recursive**: includes only direct child files (one level).
-  - Filters by a hardcoded “trusted extensions” allowlist (includes `.md`) in `server/repoBrowser.ts`.
+  - Filters by a hardcoded "trusted extensions" allowlist (includes `.md`) in `server/repoBrowser.ts`.
 - Run behavior:
   - Validates every selected path at run time; if a file/folder no longer exists, the node fails loudly.
 - Output: identical shape to `code-search` so downstream Context Converter can reuse the same path/range format.
@@ -167,9 +172,9 @@ The app enforces a connection matrix (invalid edges are rejected). The current r
 - Actions:
   - **Run**: run this node
   - **Chain**: run everything downstream
-  - **Reset**: clear this node’s output (unless locked)
+  - **Reset**: clear this node's output (unless locked)
 - Output:
-  - Preview + “View All”
+  - Preview + "View All"
   - Copy output to clipboard
 
 ### Multi-select
@@ -201,13 +206,6 @@ Open **Settings** (top-right):
   - delete it to reset the app state
 - `logs/relace-search.jsonl`: appended run logs (gitignored)
 - `logs/relace-search-runs/<runId>.json`: optional full message dumps when `debugMessages` is enabled
-
-## Manual Import
-
-- Folders are non-recursive (only direct child files are included).
-- Only “trusted” file extensions are included (currently hardcoded in `server/repoBrowser.ts`).
-- No file contents are persisted; every run validates paths on disk and Context Converter reads files on demand.
-- Node type id: `manual-import` (outputs the same `{ explanation, files }` shape as Code Search).
 
 ## Dev / Architecture
 
