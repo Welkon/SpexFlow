@@ -937,6 +937,14 @@
   flex-wrap: wrap;
 }
 
+.sfButtonGroup .sfButtonWrap {
+  flex: 1;
+}
+
+.sfButtonGroup .sfButtonWrap button {
+  width: 100%;
+}
+
 .sfButtonGroup button {
   flex: 1;
   min-width: 80px;

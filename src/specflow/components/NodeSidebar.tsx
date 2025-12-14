@@ -32,6 +32,7 @@ type Props = {
   runFrom: (nodeId: string) => void
   apiSettings: APISettings
   language: Language
+  canRunFromPreds: boolean
 }
 
 export function NodeSidebar({
@@ -43,6 +44,7 @@ export function NodeSidebar({
   runFrom,
   apiSettings,
   language,
+  canRunFromPreds,
 }: Props) {
   const [isOutputModalOpen, setIsOutputModalOpen] = useState(false)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
@@ -69,6 +71,10 @@ export function NodeSidebar({
   if (!selectedNode) return null
 
   const isLocked = !!selectedNode.data.locked
+  const predsBlocked = !canRunFromPreds
+  const predsBlockedTitle = predsBlocked
+    ? t(language, 'sidebar_predecessors_not_succeeded')
+    : undefined
   const customName = (selectedNode.data.customName ?? '').trim()
   const customColor = (selectedNode.data.customColor ?? '').trim()
   const manualRepoPathTrimmed =
@@ -460,12 +466,25 @@ export function NodeSidebar({
         {/* Actions Section */}
         <div className="sfSectionTitle">{t(language, 'sidebar_actions')}</div>
         <div className="sfButtonGroup">
-          <button onClick={() => runNode(selectedNode.id)} disabled={isLocked}>
-            {t(language, 'sidebar_run')}
-          </button>
-          <button onClick={() => runFrom(selectedNode.id)} disabled={isLocked}>
-            {t(language, 'sidebar_chain')}
-          </button>
+          {/* @@@ Disabled button tooltip - disabled <button> won't reliably show title, so wrap it */}
+          <span className="sfButtonWrap" title={predsBlockedTitle}>
+            <button
+              onClick={() => runNode(selectedNode.id)}
+              disabled={isLocked || predsBlocked}
+              style={predsBlocked ? { pointerEvents: 'none' } : undefined}
+            >
+              {t(language, 'sidebar_run')}
+            </button>
+          </span>
+          <span className="sfButtonWrap" title={predsBlockedTitle}>
+            <button
+              onClick={() => runFrom(selectedNode.id)}
+              disabled={isLocked || predsBlocked}
+              style={predsBlocked ? { pointerEvents: 'none' } : undefined}
+            >
+              {t(language, 'sidebar_chain')}
+            </button>
+          </span>
           <button
             onClick={() => patchSelectedNode(resetNodeRuntime)}
             disabled={isLocked || selectedNode.data.status === 'running'}

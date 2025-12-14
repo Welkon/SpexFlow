@@ -17,7 +17,7 @@ import {
   ResetIcon,
 } from './components/Icons'
 import { ChainManager } from './ChainManager'
-import { sameIdSet } from './utils'
+import { canRunFromPredecessors, predecessors, sameIdSet } from './utils'
 import { t } from './i18n'
 import {
   CodeSearchConductorNodeView,
@@ -145,6 +145,12 @@ export function SpecFlowApp() {
       : null
 
   const selectedNode = selected && selected.nodeIds.length === 1 ? primarySelectedNode : null
+
+  const canRunFromPreds = useMemo(() => {
+    if (!selectedNode) return true
+    const preds = predecessors(activeTab.canvas.nodes, activeTab.canvas.edges, selectedNode.id)
+    return canRunFromPredecessors(preds)
+  }, [activeTab.canvas.edges, activeTab.canvas.nodes, selectedNode?.id])
 
   return (
     <div className="sfRoot">
@@ -333,6 +339,7 @@ export function SpecFlowApp() {
             runFrom={(nodeId) => runFrom(nodeId).catch(() => {})}
             apiSettings={appData.apiSettings}
             language={language}
+            canRunFromPreds={canRunFromPreds}
           />
         )}
       </div>
