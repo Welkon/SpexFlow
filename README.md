@@ -222,6 +222,7 @@ Open **Settings** (top-right):
 - [ ] Support local LLMs
 - [ ] Token statistics
 - [ ] Backup running history
+- [ ] Explicit spec document management interface
 
 ## Troubleshooting
 

@@ -236,6 +236,7 @@ manual-import → context-converter → llm
 - [ ] 支持本地 LLM
 - [ ] Token 用量统计
 - [ ] 运行历史备份
+- [ ] 专门的 Spec 管理节点或界面
 
 ## 排错
 
