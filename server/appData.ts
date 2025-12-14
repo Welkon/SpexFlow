@@ -205,7 +205,7 @@ function normalizeNode(raw: unknown): AppNode | null {
       position: { x, y },
       data: {
         ...base,
-        fullFile: normalizeBool(data.fullFile, true),
+        fullFile: normalizeBool(data.fullFile, false),
         output: typeof data.output === 'string' ? data.output : null,
       },
     }

@@ -88,7 +88,7 @@ export function defaultCanvas(): Canvas {
         error: null,
         locked: false,
         muted: false,
-        fullFile: true,
+        fullFile: false,
         output: null,
       },
     },
