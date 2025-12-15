@@ -88,6 +88,30 @@ function isNonNull<T>(value: T | null): value is T {
   return value !== null
 }
 
+function normalizeLineRangesRecord(raw: unknown): Record<string, [number, number][]> | undefined {
+  const obj = asRecord(raw)
+  if (!obj) return undefined
+
+  const out: Record<string, [number, number][]> = {}
+  for (const [filePath, value] of Object.entries(obj)) {
+    if (!filePath) continue
+    if (!Array.isArray(value)) continue
+
+    const ranges: [number, number][] = []
+    for (const item of value) {
+      if (!Array.isArray(item) || item.length !== 2) continue
+      const start = item[0]
+      const end = item[1]
+      if (typeof start !== 'number' || typeof end !== 'number') continue
+      ranges.push([start, end])
+    }
+
+    if (ranges.length > 0) out[filePath] = ranges
+  }
+
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
 function normalizeNode(raw: unknown): AppNode | null {
   const obj = asRecord(raw)
   if (!obj) return null
@@ -200,6 +224,7 @@ function normalizeNode(raw: unknown): AppNode | null {
   }
 
   if (type === 'context-converter') {
+    const mergedFiles = normalizeLineRangesRecord(data.mergedFiles)
     return {
       id,
       type,
@@ -208,6 +233,7 @@ function normalizeNode(raw: unknown): AppNode | null {
         ...base,
         fullFile: normalizeBool(data.fullFile, false),
         output: typeof data.output === 'string' ? data.output : null,
+        mergedFiles,
       },
     }
   }

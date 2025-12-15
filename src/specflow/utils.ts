@@ -49,6 +49,20 @@ export function resetNodeRuntime(node: AppNode): AppNode {
 }
 
 export function resetNodeRuntimeForPaste(node: AppNode): AppNode {
+  if (node.type === 'context-converter') {
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        status: 'idle' as const,
+        error: null,
+        locked: false,
+        muted: false,
+        output: null,
+        mergedFiles: undefined,
+      },
+    } as AppNode
+  }
   return {
     ...node,
     data: { ...node.data, status: 'idle' as const, error: null, locked: false, muted: false, output: null },
