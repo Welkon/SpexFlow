@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { defaultAPISettings, defaultAppData } from './defaultData.js'
 import type {
   APISettings,
   AppData as AppDataBase,
@@ -238,43 +239,6 @@ function normalizeNode(raw: unknown): AppNode | null {
   }
 }
 
-function defaultAPISettings(): APISettings {
-  return {
-    codeSearch: {
-      activeProvider: 'relace',
-      providers: [
-        { id: 'relace', name: 'Relace', apiKey: '' }
-      ]
-    },
-    llm: {
-      providers: [
-        {
-          id: 'openai',
-          name: 'OpenAI',
-          endpoint: 'https://api.openai.com/v1',
-          apiKey: '',
-          models: [
-            { id: 'openai-gpt-4', name: 'GPT-4' },
-            { id: 'openai-gpt-4-turbo', name: 'GPT-4 Turbo' },
-            { id: 'openai-gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
-          ]
-        },
-        {
-          id: 'anthropic',
-          name: 'Anthropic',
-          endpoint: 'https://api.anthropic.com/v1',
-          apiKey: '',
-          models: [
-            { id: 'anthropic-claude-3-opus', name: 'Claude 3 Opus' },
-            { id: 'anthropic-claude-3-sonnet', name: 'Claude 3 Sonnet' },
-            { id: 'anthropic-claude-3-haiku', name: 'Claude 3 Haiku' },
-          ]
-        }
-      ]
-    }
-  }
-}
-
 function normalizeAPISettings(raw: unknown): APISettings {
   const defaults = defaultAPISettings()
   const obj = asRecord(raw)
@@ -402,9 +366,11 @@ function normalizeAppData(raw: unknown): AppData {
     })
     .filter(isNonNull)
 
-  const activeTabId = normalizeString(root.activeTabId) || (tabs[0]?.id ?? null)
+  const activeTabIdRaw = normalizeString(root.activeTabId)
+  const activeTabId = tabs.some((t) => t.id === activeTabIdRaw) ? activeTabIdRaw : (tabs[0]?.id ?? null)
   const apiSettings = normalizeAPISettings(root.apiSettings)
   const ui = normalizeUISettings(root.ui)
+  if (tabs.length === 0) return { ...defaultAppData(), apiSettings, ui }
   return {
     version: typeof root.version === 'number' ? root.version : 1,
     tabs,
@@ -414,89 +380,23 @@ function normalizeAppData(raw: unknown): AppData {
   }
 }
 
-export function defaultAppData(): AppData {
-  const now = new Date().toISOString()
-  return {
-    version: 1,
-    activeTabId: 'tab_1',
-    tabs: [
-      {
-        id: 'tab_1',
-        name: 'Canvas 1',
-        createdAt: now,
-        canvas: {
-          nodes: [
-            {
-              id: 'n_search',
-              type: 'code-search',
-              position: { x: 60, y: 80 },
-              data: {
-                title: 'Code Search',
-                status: 'idle',
-                error: null,
-                locked: false,
-                muted: false,
-                repoPath: 'examples/example-repo',
-                query: 'How is user authentication handled in this codebase?',
-                debugMessages: false,
-                output: null,
-              },
-            },
-            {
-              id: 'n_ctx',
-              type: 'context-converter',
-              position: { x: 420, y: 80 },
-              data: {
-                title: 'Context',
-                status: 'idle',
-                error: null,
-                locked: false,
-                muted: false,
-                fullFile: true,
-                output: null,
-              },
-            },
-            {
-              id: 'n_llm',
-              type: 'llm',
-              position: { x: 800, y: 80 },
-              data: {
-                title: 'LLM',
-                status: 'idle',
-                error: null,
-                locked: false,
-                muted: false,
-                model: 'x-ai/grok-4.1-fast',
-                systemPrompt:
-                  'You are a senior software engineer. Given code context, propose a concrete implementation plan and the key files to edit.',
-                query: 'Propose a plan to improve this authentication design.',
-                output: null,
-              },
-            },
-          ],
-          edges: [
-            { id: 'e_search_ctx', source: 'n_search', target: 'n_ctx' },
-            { id: 'e_ctx_llm', source: 'n_ctx', target: 'n_llm' },
-          ],
-          viewport: { x: 0, y: 0, zoom: 1 },
-        },
-      },
-    ],
-    apiSettings: defaultAPISettings(),
-    ui: { language: 'en' },
-  }
-}
-
 const dataPath = path.join(process.cwd(), 'data.json')
 
 export async function loadAppData(): Promise<AppData> {
+  let raw: string
   try {
-    const raw = await readFile(dataPath, 'utf-8')
-    return normalizeAppData(JSON.parse(raw))
+    raw = await readFile(dataPath, 'utf-8')
   } catch (err: unknown) {
     const code = (err as NodeJS.ErrnoException).code
     if (code === 'ENOENT') return defaultAppData()
     throw err
+  }
+
+  try {
+    return normalizeAppData(JSON.parse(raw))
+  } catch (err: unknown) {
+    console.error(err)
+    return defaultAppData()
   }
 }
 

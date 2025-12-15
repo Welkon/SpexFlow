@@ -4,7 +4,8 @@ import '@xyflow/react/dist/style.css'
 
 import { useAppData, useNodeRunner, useChainRunner, useClipboard, useHotkeys } from './hooks'
 import { NodeSidebar, ToolbarButton, MultiSelectInfo, APISettingsModal, SettingsIcon } from './components'
-import type { APISettings, Viewport } from './types'
+import type { APISettings, AppData, Viewport } from './types'
+import type { Dispatch, RefObject, SetStateAction } from 'react'
 import {
   HandIcon,
   SelectIcon,
@@ -29,10 +30,24 @@ import {
 } from './nodes'
 
 export function SpecFlowApp() {
+  const app = useAppData()
+  if (app.isLoading) return <div className="sfLoading">Loading...</div>
+  if (app.loadError || !app.appData || !app.activeTab) {
+    const msg = app.loadError ?? 'Invalid app data'
+    return (
+      <div className="sfLoading">
+        <div className="sfError">Failed to load: {msg}</div>
+      </div>
+    )
+  }
+
+  return <SpecFlowAppLoaded {...app} appData={app.appData} activeTab={app.activeTab} />
+}
+
+function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: AppData; activeTab: NonNullable<ReturnType<typeof useAppData>['activeTab']> }) {
   const {
     appData,
     setAppData,
-    appDataRef,
     activeTab,
     rfNodes,
     selected,
@@ -52,7 +67,18 @@ export function SpecFlowApp() {
     addNode,
     patchSelectedNode,
     patchNodeById,
-  } = useAppData()
+  } = props
+
+  const appDataRef = props.appDataRef as RefObject<AppData>
+  const setAppDataStrict: Dispatch<SetStateAction<AppData>> = useCallback(
+    (next) => {
+      setAppData((prev) => {
+        if (!prev) throw new Error('App data not loaded')
+        return typeof next === 'function' ? (next as (p: AppData) => AppData)(prev) : next
+      })
+    },
+    [setAppData],
+  )
 
   const { inFlightRuns, runNode, nodeToLocalOutput } = useNodeRunner(appDataRef, patchNodeById)
 
@@ -67,7 +93,7 @@ export function SpecFlowApp() {
   const { copySelectedNodes, pasteClipboard } = useClipboard(
     appDataRef,
     selectedRef,
-    setAppData,
+    setAppDataStrict,
     setSelected,
   )
 
@@ -129,21 +155,21 @@ export function SpecFlowApp() {
   }, [])
 
   const updateAPISettings = useCallback((newSettings: APISettings) => {
-    setAppData(prev => ({
+    setAppDataStrict(prev => ({
       ...prev,
       apiSettings: newSettings
     }))
-  }, [setAppData])
+  }, [setAppDataStrict])
 
   const updateLanguage = useCallback((next: typeof language) => {
-    setAppData((prev) => ({
+    setAppDataStrict((prev) => ({
       ...prev,
       ui: {
         ...prev.ui,
         language: next,
       },
     }))
-  }, [setAppData])
+  }, [setAppDataStrict])
 
   const nodeTypes = useMemo(
     () => ({

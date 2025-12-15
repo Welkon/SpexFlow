@@ -2,7 +2,15 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { getLLMProviderByModel } from './appData.js'
 
-const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
+const OPENROUTER_BASE_ENDPOINT = 'https://openrouter.ai/api/v1'
+
+function isOpenRouterEndpoint(endpoint: string) {
+  try {
+    return new URL(endpoint).hostname === 'openrouter.ai'
+  } catch {
+    return false
+  }
+}
 
 async function readKeyFromDotfile() {
   const keyPath = path.join(process.cwd(), '.llmkey')
@@ -30,7 +38,7 @@ export async function runOpenRouterChat(args: {
     modelId = args.model
   } else {
     // Fall back to OpenRouter with .llmkey file
-    endpoint = OPENROUTER_ENDPOINT
+    endpoint = OPENROUTER_BASE_ENDPOINT
     apiKey = await readKeyFromDotfile()
     modelId = args.model
   }
@@ -46,7 +54,7 @@ export async function runOpenRouterChat(args: {
   }
 
   // Add OpenRouter-specific headers only for OpenRouter
-  if (endpoint === OPENROUTER_ENDPOINT) {
+  if (isOpenRouterEndpoint(endpoint)) {
     headers['HTTP-Referer'] = 'http://localhost:5173'
     headers['X-Title'] = 'SpecFlow'
   }
@@ -74,4 +82,3 @@ export async function runOpenRouterChat(args: {
   }
   return content
 }
-

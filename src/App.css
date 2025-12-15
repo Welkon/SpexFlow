@@ -7,6 +7,16 @@
     'Segoe UI', Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
 }
 
+.sfLoading {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  font-size: 12px;
+}
+
 /* ===== Modern Tab Bar ===== */
 .sfTabs {
   height: 48px;

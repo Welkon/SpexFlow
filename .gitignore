@@ -26,4 +26,4 @@ dist-ssr
 .apikey
 .llmkey
 data.json
-.llmkey
+backup/*
