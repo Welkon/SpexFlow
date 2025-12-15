@@ -132,6 +132,8 @@ Then copy the LLM output and paste it into your coding agent.
 - Purpose: turn `{ explanation, files }` into a single line-numbered context string.
 - Input: one or more `code-search` / `manual-import` predecessors.
 - Config: `fullFile` (full files) vs ranges.
+- Behavior: merges and deduplicates overlapping/adjacent line ranges across all predecessors (per repo) before building context.
+- UI: shows the merged file ranges in the sidebar ("Merged File Ranges").
 - Output: a single string, joining multiple predecessor contexts with `---`.
 
 ### `llm`
@@ -216,7 +218,7 @@ Open **Settings** (top-right):
 
 ## Roadmap
 
-- [ ] Code file auto merge/deduplication + visualization for context converter node output
+- [x] Code file auto merge/deduplication + visualization for context converter node output
 - [ ] Export canvas to local file
 - [ ] Custom LLM parameters (e.g. reasoning, temperature)
 - [ ] Support local LLMs

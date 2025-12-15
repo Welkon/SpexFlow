@@ -132,6 +132,8 @@ instruction → code-search → context-converter → llm
 - 作用：把 `{ explanation, files }` 变成一段带行号的上下文文本。
 - 输入：一个或多个 `code-search` / `manual-import` 上游节点。
 - 配置：`fullFile`（整文件）或 ranges。
+- 行为：会在构建上下文前，对所有上游结果（按 repo）做文件行范围的合并与去重（重叠/相邻 range 会合并）。
+- UI：侧边栏会展示合并后的文件范围（"合并后的文件范围"）。
 - 输出：单个字符串；多个上游会用 `---` 拼接。
 
 ### `llm`
@@ -230,7 +232,7 @@ manual-import → context-converter → llm
 
 ## Roadmap
 
-- [ ] 代码文件自动合并/去重 + Context Converter 节点输出可视化
+- [x] 代码文件自动合并/去重 + Context Converter 节点输出可视化
 - [ ] 导出画布到本地文件
 - [ ] 自定义 LLM 参数（如 reasoning、temperature）
 - [ ] 支持本地 LLM
