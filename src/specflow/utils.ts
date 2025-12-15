@@ -39,6 +39,12 @@ export function canRunFromPredecessors(preds: AppNode[]) {
 
 export function resetNodeRuntime(node: AppNode): AppNode {
   if (node.data.locked) return node
+  if (node.type === 'context-converter') {
+    return {
+      ...node,
+      data: { ...node.data, status: 'idle', error: null, output: null, mergedFiles: undefined },
+    } as AppNode
+  }
   return { ...node, data: { ...node.data, status: 'idle', error: null, output: null } } as AppNode
 }
 

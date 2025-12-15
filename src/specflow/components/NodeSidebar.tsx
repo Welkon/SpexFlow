@@ -529,6 +529,15 @@ export function NodeSidebar({
           </div>
         )}
 
+        {selectedNode.type === 'context-converter' && selectedNode.data.mergedFiles && (
+          <div className="sfOutputSection">
+            <div className="sfOutputHeader">
+              <span className="sfOutputTitle">{t(language, 'sidebar_merged_files')}</span>
+            </div>
+            <CodeSearchOutputPreview output={{ files: selectedNode.data.mergedFiles }} />
+          </div>
+        )}
+
         {/* Output Viewer Modal */}
         <OutputViewerModal
           isOpen={isOutputModalOpen}

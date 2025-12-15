@@ -42,6 +42,7 @@ export type CodeSearchData = BaseNodeData & {
 export type ContextConverterData = BaseNodeData & {
   fullFile: boolean
   output: string | null
+  mergedFiles?: Record<string, [number, number][]>
 }
 
 export type InstructionData = BaseNodeData & {

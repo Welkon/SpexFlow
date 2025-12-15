@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react'
 import type { AppData, AppNode, CodeSearchOutput } from '../types'
 import { buildRepoContext, runCodeSearch, runConductor, runLLM, resolveManualImport } from '../api'
+import { mergeCodeSearchOutputs } from '../../../shared/rangeUtils'
 import {
   ChainCancelledError,
   getActiveTab,
@@ -203,6 +204,7 @@ export function useNodeRunner(
               data: {
                 ...n.data,
                 output: emptyOutput,
+                ...(n.type === 'context-converter' ? { mergedFiles: undefined } : {}),
                 status: 'success',
                 error: null,
               },
@@ -477,19 +479,40 @@ export function useNodeRunner(
             if (searchPreds.length === 0)
               throw new Error('Context converter requires a code-search/manual-import predecessor.')
 
-            const contexts = await Promise.all(
-              searchPreds.map(async (p) => {
-                const out = getCodeSearchOutput(p.id, localOutputs)
-                if (!out) throw new Error('Code-search predecessor has no output.')
-                return buildRepoContext({
-                  repoPath: getCodeSearchRepoPath(p.id, localOutputs),
-                  explanation: out.explanation,
-                  files: out.files,
-                  fullFile: node.data.fullFile,
-                  signal,
-                })
-              }),
-            )
+            const byRepo = new Map<
+              string,
+              { outputs: Array<{ explanation: string; files: CodeSearchOutput['files'] }>; explanations: string[] }
+            >()
+
+            for (const p of searchPreds) {
+              const out = getCodeSearchOutput(p.id, localOutputs)
+              if (!out) throw new Error('Code-search predecessor has no output.')
+              const repoPath = getCodeSearchRepoPath(p.id, localOutputs)
+              const entry = byRepo.get(repoPath) ?? { outputs: [], explanations: [] }
+              entry.outputs.push({ explanation: out.explanation, files: out.files })
+              if (out.explanation) entry.explanations.push(out.explanation)
+              byRepo.set(repoPath, entry)
+            }
+
+            const contexts: string[] = []
+            const allMergedFiles: Record<string, Array<[number, number]>> = {}
+
+            for (const [repoPath, { outputs, explanations }] of byRepo.entries()) {
+              const mergedFiles = mergeCodeSearchOutputs(outputs)
+              Object.assign(allMergedFiles, mergedFiles)
+
+              const text = await buildRepoContext({
+                repoPath,
+                explanation: explanations
+                  .map((x) => x.trim())
+                  .filter(Boolean)
+                  .join('\n\n---\n\n'),
+                files: mergedFiles,
+                fullFile: node.data.fullFile,
+                signal,
+              })
+              contexts.push(text)
+            }
 
             const text = contexts.join('\n\n---\n\n')
             patchNodeById(nodeId, (n) => {
@@ -499,6 +522,7 @@ export function useNodeRunner(
                 data: {
                   ...n.data,
                   output: text,
+                  mergedFiles: allMergedFiles,
                   status: 'success',
                   error: null,
                 },

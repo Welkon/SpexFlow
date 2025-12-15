@@ -47,6 +47,7 @@ const EN: Dict = {
   sidebar_copied: 'Copied',
   sidebar_copy_title: 'Copy to clipboard',
   sidebar_copied_title: 'Copied!',
+  sidebar_merged_files: 'Merged File Ranges',
 
   field_repo_path: 'Repository Path',
   field_query: 'Query',
@@ -173,6 +174,7 @@ const ZH: Dict = {
   sidebar_copied: '已复制',
   sidebar_copy_title: '复制到剪贴板',
   sidebar_copied_title: '已复制！',
+  sidebar_merged_files: '合并后的文件范围',
 
   field_repo_path: '仓库路径',
   field_query: '查询',
