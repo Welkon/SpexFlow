@@ -11,6 +11,7 @@ type Props = {
 
 export function CodeSearchOutputPreview({ output }: Props) {
   const fileEntries = Object.entries(output.files || {})
+  const formatRange = (start: number, end: number) => (end === -1 ? `L${start}-EOF` : `L${start}-${end}`)
 
   return (
     <div className="sfCodeSearchOutput">
@@ -27,7 +28,7 @@ export function CodeSearchOutputPreview({ output }: Props) {
               <span className="sfCodeSearchRanges">
                 {ranges.map(([start, end], idx) => (
                   <span key={idx} className="sfCodeSearchRange">
-                    L{start}-{end}
+                    {formatRange(start, end)}
                   </span>
                 ))}
               </span>

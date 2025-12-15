@@ -499,7 +499,10 @@ export function useNodeRunner(
 
             for (const [repoPath, { outputs, explanations }] of byRepo.entries()) {
               const mergedFiles = mergeCodeSearchOutputs(outputs)
-              Object.assign(allMergedFiles, mergedFiles)
+              const mergedFilesForDisplay = node.data.fullFile
+                ? Object.fromEntries(Object.keys(mergedFiles).map((p) => [p, [[1, -1]] as [number, number][]]))
+                : mergedFiles
+              Object.assign(allMergedFiles, mergedFilesForDisplay)
 
               const text = await buildRepoContext({
                 repoPath,
