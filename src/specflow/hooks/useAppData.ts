@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Edge } from '@xyflow/react'
 import { addEdge, applyEdgeChanges, applyNodeChanges } from '@xyflow/react'
 import type { Connection, EdgeChange, NodeChange } from '@xyflow/react'
-import type { AppData, AppNode, Canvas, Tab, Viewport } from '../types'
+import type { AppData, AppNode, ArchiveData, ArchiveNode, ArchivedMember, Canvas, NonArchiveNode, Tab, Viewport } from '../types'
 import { fetchAppData, saveAppData } from '../api'
 import { getActiveTab, isValidConnection, uid, updateNode } from '../utils'
 
@@ -176,6 +176,71 @@ export function useAppData() {
     setSelected(null)
   }, [updateActiveCanvas])
 
+  const archiveSelectedNodes = useCallback(() => {
+    const sel = selectedRef.current
+    if (!sel || sel.nodeIds.length < 1) return
+
+    updateActiveCanvas((t) => {
+      const selectedSet = new Set(sel.nodeIds)
+      const nodesToArchive = t.canvas.nodes.filter((n) => selectedSet.has(n.id))
+      if (nodesToArchive.length === 0) return t
+
+      // Flatten all members - this ensures associativity
+      // archive(archive(A,B), C) = archive(A, B, C) because we flatten
+      const allMembers: ArchivedMember[] = []
+      const now = new Date().toISOString()
+
+      for (const node of nodesToArchive) {
+        if (node.type === 'archive') {
+          allMembers.push(...(node.data as ArchiveData).members)
+          continue
+        }
+        const snapshot = { ...(node.data as Record<string, unknown>) }
+        allMembers.push({
+          id: node.id,
+          type: node.type as NonArchiveNode['type'],
+          title: node.data.title,
+          customName: node.data.customName,
+          status: node.data.status,
+          archivedAt: now,
+          snapshot,
+        })
+      }
+
+      const avgX = nodesToArchive.reduce((sum, n) => sum + n.position.x, 0) / nodesToArchive.length
+      const avgY = nodesToArchive.reduce((sum, n) => sum + n.position.y, 0) / nodesToArchive.length
+
+      const archiveNode: ArchiveNode = {
+        id: uid('n'),
+        type: 'archive',
+        position: { x: avgX, y: avgY },
+        data: {
+          title: 'Archive',
+          status: 'idle',
+          error: null,
+          locked: false,
+          muted: false,
+          members: allMembers,
+          output: null,
+        },
+      }
+
+      const remainingNodes = t.canvas.nodes.filter((n) => !selectedSet.has(n.id))
+      const remainingEdges = t.canvas.edges.filter((e) => !selectedSet.has(e.source) && !selectedSet.has(e.target))
+
+      return {
+        ...t,
+        canvas: {
+          ...t.canvas,
+          nodes: [...remainingNodes, archiveNode],
+          edges: remainingEdges,
+        },
+      }
+    })
+
+    setSelected(null)
+  }, [updateActiveCanvas])
+
   const onNodesChange = useCallback(
     (changes: NodeChange<AppNode>[]) => {
       updateActiveCanvas((t) => {
@@ -229,7 +294,7 @@ export function useAppData() {
   )
 
   const addNode = useCallback(
-    (type: AppNode['type'], liveViewport?: Viewport) => {
+    (type: NonArchiveNode['type'], liveViewport?: Viewport) => {
       const snap = appDataRef.current
       if (!snap) throw new Error('App data not loaded')
       const tabSnap = getActiveTab(snap)
@@ -322,6 +387,7 @@ export function useAppData() {
           },
         }
       } else {
+        if (type !== 'llm') throw new Error(`Unsupported node type: ${type}`)
         node = {
           ...base,
           type,
@@ -400,5 +466,6 @@ export function useAppData() {
     addNode,
     patchSelectedNode,
     patchNodeById,
+    archiveSelectedNodes,
   }
 }

@@ -189,6 +189,7 @@ export function useNodeRunner(
         const node = snapshot.canvas.nodes.find((n) => n.id === nodeId)
         if (!node) throw new Error(`Node not found: ${nodeId}`)
         if (mode === 'single' && node.data.locked) throw new Error('Node is locked')
+        if (node.type === 'archive') throw new Error('Archive nodes cannot be executed')
         throwIfAborted(signal)
 
         const preds = predecessors(snapshot.canvas.nodes, snapshot.canvas.edges, nodeId)

@@ -563,6 +563,41 @@
   opacity: 0.75;
 }
 
+.sfArchiveMembers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.sfArchiveMember {
+  display: grid;
+  grid-template-columns: 120px 1fr 70px 110px;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  background: #fafafa;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.sfArchiveMemberType,
+.sfArchiveMemberStatus,
+.sfArchiveMemberDate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.8;
+}
+
+.sfArchiveMemberTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sfLabel {
   display: flex;
   flex-direction: column;

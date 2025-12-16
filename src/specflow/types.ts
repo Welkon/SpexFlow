@@ -48,13 +48,43 @@ export type CodeSearchConductorNode = Node<CodeSearchConductorData, 'code-search
 export type LLMNode = Node<LLMData, 'llm'>
 export type ManualImportNode = Node<ManualImportData, 'manual-import'>
 
-export type AppNode =
+export type NonArchiveNode =
   | CodeSearchNode
   | ContextConverterNode
   | InstructionNode
   | CodeSearchConductorNode
   | LLMNode
   | ManualImportNode
+
+export type ArchivedMember = {
+  id: string // Original node id
+  type: NonArchiveNode['type'] // Original node type (excluding 'archive')
+  title: string
+  customName?: string
+  status: NodeStatus
+  archivedAt: string // ISO timestamp
+  // Store a snapshot of key data for inspection
+  snapshot: Record<string, unknown>
+}
+
+export type ArchiveData = {
+  title: string
+  status: 'idle' // Always idle, cannot run
+  error: null
+  locked: boolean
+  muted: boolean
+  customName?: string
+  customColor?: string
+  width?: number
+  height?: number
+  // Store archived nodes flattened - this ensures associativity
+  members: ArchivedMember[]
+  output: null // Never produces output
+}
+
+export type ArchiveNode = Node<ArchiveData, 'archive'>
+
+export type AppNode = NonArchiveNode | ArchiveNode
 
 export type Canvas = CanvasBase<AppNode, Edge>
 export type Tab = TabBase<AppNode, Edge>

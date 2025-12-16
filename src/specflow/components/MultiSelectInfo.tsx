@@ -4,11 +4,12 @@ type Props = {
   count: number
   primaryTitle?: string
   onCopy: () => void
+  onArchive: () => void
   onDelete: () => void
   onLayout: (layoutType: 'vertical-stack' | 'compact-stack' | 'horizontal-stack') => void
 }
 
-export function MultiSelectInfo({ count, primaryTitle, onCopy, onDelete, onLayout }: Props) {
+export function MultiSelectInfo({ count, primaryTitle, onCopy, onArchive, onDelete, onLayout }: Props) {
   const [isLayoutMenuOpen, setIsLayoutMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -32,6 +33,7 @@ export function MultiSelectInfo({ count, primaryTitle, onCopy, onDelete, onLayou
       {primaryTitle && <div className="sfMultiSelectPrimary">Primary: {primaryTitle}</div>}
       <div className="sfMultiSelectActions">
         <button onClick={onCopy}>Copy</button>
+        <button onClick={onArchive}>Archive</button>
         <div className="sfLayoutButtonWrapper" ref={menuRef}>
           <button onClick={() => setIsLayoutMenuOpen((v) => !v)}>Quick Layout ▾</button>
           {isLayoutMenuOpen && (

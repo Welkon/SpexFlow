@@ -1,6 +1,7 @@
 import type { NodeProps } from '@xyflow/react'
 import { Handle, NodeResizer, Position } from '@xyflow/react'
 import type {
+  ArchiveNode,
   CodeSearchConductorNode,
   CodeSearchNode,
   ContextConverterNode,
@@ -341,6 +342,26 @@ export function ManualImportNodeView({
       customName={data.customName}
       customColor={data.customColor}
       status={data.status}
+      subtitle={subtitle}
+      selected={selected}
+      locked={!!data.locked}
+      muted={!!data.muted}
+      width={data.width}
+      height={data.height}
+    />
+  )
+}
+
+export function ArchiveNodeView({ data, selected }: NodeProps<ArchiveNode>) {
+  const memberCount = data.members.length
+  const subtitle = `${memberCount} archived node${memberCount !== 1 ? 's' : ''}`
+
+  return (
+    <NodeShell
+      title={data.title}
+      customName={data.customName}
+      customColor={data.customColor}
+      status="idle"
       subtitle={subtitle}
       selected={selected}
       locked={!!data.locked}

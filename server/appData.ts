@@ -23,6 +23,38 @@ import type {
 
 type Position = { x: number; y: number }
 
+type NonArchiveNodeType =
+  | 'code-search'
+  | 'code-search-conductor'
+  | 'manual-import'
+  | 'context-converter'
+  | 'instruction'
+  | 'llm'
+
+type ArchivedMember = {
+  id: string
+  type: NonArchiveNodeType
+  title: string
+  customName?: string
+  status: NodeStatus
+  archivedAt: string
+  snapshot: Record<string, unknown>
+}
+
+type ArchiveData = {
+  title: string
+  status: 'idle'
+  error: null
+  locked: boolean
+  muted: boolean
+  customName?: string
+  customColor?: string
+  width?: number
+  height?: number
+  members: ArchivedMember[]
+  output: null
+}
+
 export type AppNode =
   | {
     id: string
@@ -59,6 +91,12 @@ export type AppNode =
     type: 'llm'
     position: Position
     data: LLMData
+  }
+  | {
+    id: string
+    type: 'archive'
+    position: Position
+    data: ArchiveData
   }
 
 export type AppEdge = { id: string; source: string; target: string }
@@ -134,7 +172,8 @@ function normalizeNode(raw: unknown): AppNode | null {
     type !== 'manual-import' &&
     type !== 'context-converter' &&
     type !== 'instruction' &&
-    type !== 'llm'
+    type !== 'llm' &&
+    type !== 'archive'
   ) return null
   const x = typeof position.x === 'number' ? position.x : 0
   const y = typeof position.y === 'number' ? position.y : 0
@@ -152,6 +191,54 @@ function normalizeNode(raw: unknown): AppNode | null {
     height: normalizeOptionalNumber(data.height),
     customName: customNameRaw ? customNameRaw : undefined,
     customColor: customColorRaw ? customColorRaw : undefined,
+  }
+
+  if (type === 'archive') {
+    const membersRaw = Array.isArray(data.members) ? data.members : []
+    const members: ArchivedMember[] = membersRaw
+      .map((m: unknown) => {
+        const mObj = asRecord(m)
+        if (!mObj) return null
+        const memberId = normalizeString(mObj.id)
+        if (!memberId) return null
+        const memberType = mObj.type
+        if (
+          memberType !== 'code-search' &&
+          memberType !== 'code-search-conductor' &&
+          memberType !== 'manual-import' &&
+          memberType !== 'context-converter' &&
+          memberType !== 'instruction' &&
+          memberType !== 'llm'
+        ) return null
+
+        const memberCustomNameRaw = normalizeString(mObj.customName, '').trim()
+        const snapshot = asRecord(mObj.snapshot) ?? {}
+
+        return {
+          id: memberId,
+          type: memberType,
+          title: normalizeString(mObj.title, memberType),
+          customName: memberCustomNameRaw ? memberCustomNameRaw : undefined,
+          status: normalizeStatus(mObj.status),
+          archivedAt: normalizeString(mObj.archivedAt, ''),
+          snapshot,
+        }
+      })
+      .filter(isNonNull)
+
+    return {
+      id,
+      type,
+      position: { x, y },
+      data: {
+        ...base,
+        title: normalizeString(data.title, 'Archive'),
+        status: 'idle',
+        error: null,
+        members,
+        output: null,
+      },
+    }
   }
 
   if (type === 'code-search') {
@@ -389,13 +476,16 @@ function normalizeAppData(raw: unknown): AppData {
           }
         })
         .filter((e) => e.id && e.source && e.target)
+
+      const archiveNodeIds = new Set(nodes.filter((n) => n.type === 'archive').map((n) => n.id))
+      const edgesWithoutArchive = edges.filter((e) => !archiveNodeIds.has(e.source) && !archiveNodeIds.has(e.target))
       const viewport = normalizeViewport(canvas.viewport)
 
       return {
         id,
         name: normalizeString(tab.name, 'Canvas'),
         createdAt: normalizeString(tab.createdAt, now),
-        canvas: { nodes, edges, viewport },
+        canvas: { nodes, edges: edgesWithoutArchive, viewport },
       }
     })
     .filter(isNonNull)

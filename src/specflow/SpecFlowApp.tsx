@@ -27,6 +27,7 @@ import {
   InstructionNodeView,
   LLMNodeView,
   ManualImportNodeView,
+  ArchiveNodeView,
 } from './nodes'
 
 export function SpecFlowApp() {
@@ -59,6 +60,7 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
     renameTab,
     closeTab,
     deleteSelectedNodes,
+    archiveSelectedNodes,
     updateActiveCanvas,
     updateActiveViewport,
     onNodesChange,
@@ -205,6 +207,7 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
       instruction: InstructionNodeView,
       llm: LLMNodeView,
       'manual-import': ManualImportNodeView,
+      archive: ArchiveNodeView,
     }),
     [],
   )
@@ -428,6 +431,7 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
             count={selected.nodeIds.length}
             primaryTitle={primarySelectedNode?.data.title}
             onCopy={copySelectedNodes}
+            onArchive={archiveSelectedNodes}
             onDelete={deleteSelectedNodes}
             onLayout={handleQuickLayout}
           />

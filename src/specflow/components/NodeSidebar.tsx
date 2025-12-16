@@ -81,6 +81,7 @@ export function NodeSidebar({
     selectedNode.type === 'manual-import' ? (selectedNode.data.repoPath ?? '').trim() : ''
 
   const outputTitle = t(language, 'sidebar_output')
+  const archiveData = selectedNode.type === 'archive' ? selectedNode.data : null
 
   return (
     <div className="sfSidebar">
@@ -196,6 +197,36 @@ export function NodeSidebar({
         </div>
 
         <div className="sfSectionDivider" />
+
+        {archiveData && (
+          <>
+            <div className="sfSectionTitle">
+              Archived Members ({archiveData.members.length})
+            </div>
+            {archiveData.members.length === 0 ? (
+              <div className="sfEmpty">Empty archive</div>
+            ) : (
+              <div className="sfArchiveMembers">
+                {archiveData.members.map((member, idx) => (
+                  <div key={`${member.id}-${idx}`} className="sfArchiveMember">
+                    <span className="sfArchiveMemberType" title={member.type}>
+                      {member.type}
+                    </span>
+                    <span className="sfArchiveMemberTitle" title={member.customName || member.title}>
+                      {member.customName || member.title}
+                    </span>
+                    <span className="sfArchiveMemberStatus" title={member.status}>
+                      {member.status}
+                    </span>
+                    <span className="sfArchiveMemberDate" title={member.archivedAt}>
+                      {new Date(member.archivedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
         {/* Code Search Node */}
         {selectedNode.type === 'code-search' && (
@@ -466,27 +497,39 @@ export function NodeSidebar({
         {/* Actions Section */}
         <div className="sfSectionTitle">{t(language, 'sidebar_actions')}</div>
         <div className="sfButtonGroup">
-          {/* @@@ Disabled button tooltip - disabled <button> won't reliably show title, so wrap it */}
-          <span className="sfButtonWrap" title={predsBlockedTitle}>
-            <button
-              onClick={() => runNode(selectedNode.id)}
-              disabled={isLocked || predsBlocked}
-              style={predsBlocked ? { pointerEvents: 'none' } : undefined}
-            >
-              {t(language, 'sidebar_run')}
-            </button>
-          </span>
-          <span className="sfButtonWrap" title={predsBlockedTitle}>
-            <button
-              onClick={() => runFrom(selectedNode.id)}
-              disabled={isLocked || predsBlocked}
-              style={predsBlocked ? { pointerEvents: 'none' } : undefined}
-            >
-              {t(language, 'sidebar_chain')}
-            </button>
-          </span>
+          {selectedNode.type !== 'archive' && (
+            <>
+              {/* @@@ Disabled button tooltip - disabled <button> won't reliably show title, so wrap it */}
+              <span className="sfButtonWrap" title={predsBlockedTitle}>
+                <button
+                  onClick={() => runNode(selectedNode.id)}
+                  disabled={isLocked || predsBlocked}
+                  style={predsBlocked ? { pointerEvents: 'none' } : undefined}
+                >
+                  {t(language, 'sidebar_run')}
+                </button>
+              </span>
+              <span className="sfButtonWrap" title={predsBlockedTitle}>
+                <button
+                  onClick={() => runFrom(selectedNode.id)}
+                  disabled={isLocked || predsBlocked}
+                  style={predsBlocked ? { pointerEvents: 'none' } : undefined}
+                >
+                  {t(language, 'sidebar_chain')}
+                </button>
+              </span>
+            </>
+          )}
           <button
-            onClick={() => patchSelectedNode(resetNodeRuntime)}
+            onClick={() =>
+              patchSelectedNode((n) => {
+                if (n.type !== 'archive') return resetNodeRuntime(n)
+                return {
+                  ...n,
+                  data: { ...n.data, members: [], status: 'idle', error: null, output: null },
+                }
+              })
+            }
             disabled={isLocked || selectedNode.data.status === 'running'}
           >
             {t(language, 'sidebar_reset')}
