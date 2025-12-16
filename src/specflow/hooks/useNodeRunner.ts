@@ -158,7 +158,13 @@ export function useNodeRunner(
     (preds: AppNode[], localOutputs?: Map<string, LocalOutput>) => {
       const parts: string[] = []
       for (const p of preds) {
-        if (p.type === 'context-converter' || p.type === 'instruction' || p.type === 'llm') {
+        if (p.type === 'context-converter') {
+          const s = getStringOutput(p.id, localOutputs).trim()
+          if (s) parts.push(s)
+        }
+      }
+      for (const p of preds) {
+        if (p.type === 'instruction' || p.type === 'llm') {
           const s = getStringOutput(p.id, localOutputs).trim()
           if (s) parts.push(s)
         }
@@ -517,7 +523,7 @@ export function useNodeRunner(
               contexts.push(text)
             }
 
-            const text = contexts.join('\n\n---\n\n')
+            const text = contexts.join('\n\n---\n\n').trimEnd() + '\n\n---end of code context---\n\n'
             patchNodeById(nodeId, (n) => {
               if (n.type !== 'context-converter') return n
               return {

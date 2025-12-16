@@ -516,14 +516,19 @@ export function NodeSidebar({
                 />
               </div>
             </div>
-            {selectedNode.type !== 'code-search' && (
-              <div className="sfOutputPreview">
-                {typeof selectedNode.data.output === 'string'
-                  ? selectedNode.data.output.slice(0, 500) + (selectedNode.data.output.length > 500 ? '...' : '')
-                  : JSON.stringify(selectedNode.data.output, null, 2).slice(0, 500)}
-              </div>
-            )}
+            {selectedNode.type !== 'code-search' &&
+              !(selectedNode.type === 'manual-import' && isCodeSearchOutput(selectedNode.data.output)) && (
+                <div className="sfOutputPreview">
+                  {typeof selectedNode.data.output === 'string'
+                    ? selectedNode.data.output.slice(0, 500) +
+                      (selectedNode.data.output.length > 500 ? '...' : '')
+                    : JSON.stringify(selectedNode.data.output, null, 2).slice(0, 500)}
+                </div>
+              )}
             {selectedNode.type === 'code-search' && isCodeSearchOutput(selectedNode.data.output) && (
+              <CodeSearchOutputPreview output={selectedNode.data.output} />
+            )}
+            {selectedNode.type === 'manual-import' && isCodeSearchOutput(selectedNode.data.output) && (
               <CodeSearchOutputPreview output={selectedNode.data.output} />
             )}
           </div>
