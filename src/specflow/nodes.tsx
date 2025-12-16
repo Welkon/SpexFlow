@@ -1,5 +1,5 @@
 import type { NodeProps } from '@xyflow/react'
-import { Handle, Position } from '@xyflow/react'
+import { Handle, NodeResizer, Position } from '@xyflow/react'
 import type {
   CodeSearchConductorNode,
   CodeSearchNode,
@@ -10,6 +10,15 @@ import type {
   NodeStatus,
 } from './types'
 import { LockIcon, MuteIcon } from './components/Icons'
+
+function normalizeMultilinePreview(text: string) {
+  return (text || '').replaceAll('\r\n', '\n').replaceAll('\r', '\n').trimEnd()
+}
+
+function previewOrHint(text: string, hint: string) {
+  const normalized = normalizeMultilinePreview(text)
+  return normalized.trim() ? normalized : hint
+}
 
 function repoLabel(repoPath: string) {
   const raw = (repoPath || '').trim()
@@ -58,6 +67,30 @@ const STATUS_PILL: Record<
 
 const HANDLE_STYLE = { width: 10, height: 10, background: '#666', zIndex: 5 } as const
 
+function NodePreview(props: { text: string; fillHeight: boolean }) {
+  return (
+    <div
+      style={{
+        opacity: 0.8,
+        marginTop: 3,
+        whiteSpace: 'pre-wrap',
+        overflowWrap: 'anywhere',
+        wordBreak: 'break-word',
+        overflow: 'hidden',
+        ...(props.fillHeight
+          ? { flex: 1, minHeight: 0 }
+          : {
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+            }),
+      }}
+    >
+      {props.text}
+    </div>
+  )
+}
+
 function NodeShell(props: {
   title: string
   customName?: string
@@ -67,6 +100,8 @@ function NodeShell(props: {
   selected: boolean
   locked: boolean
   muted: boolean
+  width?: number
+  height?: number
 }) {
   const pill = STATUS_PILL[props.status]
   const displayTitle = (props.customName ?? '').trim() || props.title
@@ -75,17 +110,35 @@ function NodeShell(props: {
   return (
     <div
       style={{
-        width: 220,
+        width: props.width ?? 220,
+        minWidth: 150,
+        maxWidth: 600,
+        height: props.height ?? undefined,
+        minHeight: 54,
         border: `2px solid ${surface.borderColor}`,
         background: surface.background,
         borderRadius: 10,
-        padding: 10,
+        padding: 8,
+        paddingBottom: 6,
         fontSize: 12,
         boxShadow: props.selected ? '0 0 0 3px rgba(0, 110, 255, 0.25)' : 'none',
         position: 'relative',
         opacity: props.muted ? 0.7 : 1,
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
+      <NodeResizer
+        minWidth={150}
+        minHeight={54}
+        maxWidth={600}
+        isVisible={props.selected && !props.locked}
+        handleClassName="node-resize-handle nodrag"
+        lineClassName="node-resize-line nodrag"
+        color="rgba(26, 115, 232, 0.35)"
+        shouldResize={() => !props.locked}
+      />
+
       <Handle type="target" position={Position.Left} style={HANDLE_STYLE} />
       <Handle type="source" position={Position.Right} style={HANDLE_STYLE} />
 
@@ -114,13 +167,13 @@ function NodeShell(props: {
         style={{
           fontWeight: 700,
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'space-between',
           gap: 8,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span style={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.25 }}>
             {displayTitle}
           </span>
         </div>
@@ -160,7 +213,7 @@ function NodeShell(props: {
         </span>
       </div>
 
-      <div style={{ opacity: 0.8, marginTop: 4 }}>{props.subtitle}</div>
+      <NodePreview text={props.subtitle} fillHeight={!!props.height} />
     </div>
   )
 }
@@ -180,6 +233,8 @@ export function CodeSearchNodeView({ data, selected }: NodeProps<CodeSearchNode>
       selected={selected}
       locked={!!data.locked}
       muted={!!data.muted}
+      width={data.width}
+      height={data.height}
     />
   )
 }
@@ -198,14 +253,17 @@ export function ContextConverterNodeView({
       selected={selected}
       locked={!!data.locked}
       muted={!!data.muted}
+      width={data.width}
+      height={data.height}
     />
   )
 }
 
 export function LLMNodeView({ data, selected }: NodeProps<LLMNode>) {
-  const hasQuery = !!data.query?.trim()
+  const query = normalizeMultilinePreview(data.query)
+  const hasQuery = !!query.trim()
   const subtitle = hasQuery
-    ? `model: ${data.model || '(unset)'}`
+    ? `model: ${data.model || '(unset)'}\n${query}`
     : `model: ${data.model || '(unset)'} • (accepts input)`
 
   return (
@@ -218,15 +276,14 @@ export function LLMNodeView({ data, selected }: NodeProps<LLMNode>) {
       selected={selected}
       locked={!!data.locked}
       muted={!!data.muted}
+      width={data.width}
+      height={data.height}
     />
   )
 }
 
 export function InstructionNodeView({ data, selected }: NodeProps<InstructionNode>) {
-  const firstLine = (data.text || '').split('\n')[0]?.trim()
-  const subtitle = firstLine
-    ? `"${firstLine.slice(0, 24)}${firstLine.length > 24 ? '…' : ''}"`
-    : '(accepts predecessor input)'
+  const subtitle = previewOrHint(data.text, '(accepts predecessor input)')
   return (
     <NodeShell
       title={data.title}
@@ -237,6 +294,8 @@ export function InstructionNodeView({ data, selected }: NodeProps<InstructionNod
       selected={selected}
       locked={!!data.locked}
       muted={!!data.muted}
+      width={data.width}
+      height={data.height}
     />
   )
 }
@@ -262,11 +321,16 @@ export function CodeSearchConductorNodeView({
       selected={selected}
       locked={!!data.locked}
       muted={!!data.muted}
+      width={data.width}
+      height={data.height}
     />
   )
 }
 
-export function ManualImportNodeView({ data, selected }: NodeProps<ManualImportNode>) {
+export function ManualImportNodeView({
+  data,
+  selected,
+}: NodeProps<ManualImportNode>) {
   const itemsCount = Array.isArray(data.items) ? data.items.length : 0
   const subtitle = itemsCount
     ? `repo: ${repoLabel(data.repoPath)} • ${itemsCount} items`
@@ -281,6 +345,8 @@ export function ManualImportNodeView({ data, selected }: NodeProps<ManualImportN
       selected={selected}
       locked={!!data.locked}
       muted={!!data.muted}
+      width={data.width}
+      height={data.height}
     />
   )
 }

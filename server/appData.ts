@@ -80,6 +80,12 @@ function normalizeBool(value: unknown, fallback = false): boolean {
   return typeof value === 'boolean' ? value : fallback
 }
 
+function normalizeOptionalNumber(value: unknown): number | undefined {
+  if (typeof value !== 'number') return undefined
+  if (!Number.isFinite(value)) return undefined
+  return value
+}
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : null
 }
@@ -142,6 +148,8 @@ function normalizeNode(raw: unknown): AppNode | null {
     error: typeof data.error === 'string' ? data.error : null,
     locked: normalizeBool(data.locked, false),
     muted: normalizeBool(data.muted, false),
+    width: normalizeOptionalNumber(data.width),
+    height: normalizeOptionalNumber(data.height),
     customName: customNameRaw ? customNameRaw : undefined,
     customColor: customColorRaw ? customColorRaw : undefined,
   }

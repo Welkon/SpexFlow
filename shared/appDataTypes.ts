@@ -12,6 +12,8 @@ export type BaseNodeData = {
   error: string | null
   locked: boolean
   muted: boolean
+  width?: number
+  height?: number
   customName?: string
   customColor?: string
 }

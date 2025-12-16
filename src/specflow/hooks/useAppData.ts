@@ -8,6 +8,10 @@ import { getActiveTab, isValidConnection, uid, updateNode } from '../utils'
 
 export type Selected = { nodeIds: string[]; primaryId: string } | null
 
+function isDimensionChange<N extends AppNode>(c: NodeChange<N>): c is Extract<NodeChange<N>, { type: 'dimensions' }> {
+  return c.type === 'dimensions' && !!c.dimensions
+}
+
 function emptyCanvas(): Canvas {
   return { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }
 }
@@ -174,10 +178,19 @@ export function useAppData() {
 
   const onNodesChange = useCallback(
     (changes: NodeChange<AppNode>[]) => {
-      updateActiveCanvas((t) => ({
-        ...t,
-        canvas: { ...t.canvas, nodes: applyNodeChanges(changes, t.canvas.nodes) },
-      }))
+      updateActiveCanvas((t) => {
+        let nodes = applyNodeChanges(changes, t.canvas.nodes)
+        const dim = changes.filter(isDimensionChange)
+        if (dim.length > 0) {
+          const byId = new Map(dim.map((c) => [c.id, c.dimensions]))
+          nodes = nodes.map((n) => {
+            const d = byId.get(n.id)
+            if (!d) return n
+            return { ...n, data: { ...n.data, width: d.width, height: d.height } } as AppNode
+          })
+        }
+        return { ...t, canvas: { ...t.canvas, nodes } }
+      })
     },
     [updateActiveCanvas],
   )

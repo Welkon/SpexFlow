@@ -222,6 +222,40 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
     return canRunFromPredecessors(preds)
   }, [activeTab.canvas.edges, activeTab.canvas.nodes, selectedNode?.id])
 
+  const handleQuickLayout = useCallback(
+    (layoutType: 'vertical-stack' | 'compact-stack' | 'horizontal-stack') => {
+      if (!selected || selected.nodeIds.length < 2) return
+      if (layoutType !== 'vertical-stack' && layoutType !== 'compact-stack') {
+        throw new Error(`Unsupported layoutType: ${layoutType}`)
+      }
+
+      const selectedSet = new Set(selected.nodeIds)
+      const selectedNodes = activeTab.canvas.nodes.filter((n) => selectedSet.has(n.id))
+      if (selectedNodes.some((n) => n.data.locked)) {
+        alert('Quick Layout: selection contains locked node(s)')
+        return
+      }
+
+      const sorted = [...selectedNodes].sort((a, b) => (a.position.y ?? 0) - (b.position.y ?? 0))
+      const startX = Math.min(...sorted.map((n) => n.position.x ?? 0))
+      const startY = Math.min(...sorted.map((n) => n.position.y ?? 0))
+
+      const GAP = layoutType === 'compact-stack' ? -32 : 0
+      const DEFAULT_HEIGHT = 80
+
+      let y = startY
+      const changes = sorted.map((n) => {
+        const h = n.data.height ?? n.height ?? n.measured?.height ?? DEFAULT_HEIGHT
+        const next = { type: 'position' as const, id: n.id, position: { x: startX, y }, dragging: false }
+        y += h + GAP
+        return next
+      })
+
+      onNodesChange(changes)
+    },
+    [activeTab.canvas.nodes, onNodesChange, selected],
+  )
+
   return (
     <div className="sfRoot">
       <ChainManager runs={chainRuns} onCancel={cancelChain} />
@@ -395,6 +429,7 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
             primaryTitle={primarySelectedNode?.data.title}
             onCopy={copySelectedNodes}
             onDelete={deleteSelectedNodes}
+            onLayout={handleQuickLayout}
           />
         )}
 
