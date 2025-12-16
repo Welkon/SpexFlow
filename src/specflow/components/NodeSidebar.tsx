@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { AppNode, APISettings } from '../types'
+import type { AppNode, APISettings, ArchivedMember } from '../types'
 import { resetNodeRuntime } from '../utils'
 import { ExpandableTextarea } from './ExpandableTextarea'
 import { InlineCheckbox } from './InlineCheckbox'
 import { CopyButton } from './CopyButton'
 import { ModelSelect } from './ModelSelect'
 import { OutputViewerModal } from './OutputViewerModal'
+import { ArchivedMemberModal } from './ArchivedMemberModal'
 import { RepoPickerModal } from './RepoPickerModal'
 import { t } from '../i18n'
 import type { ManualImportItem, Language } from '../../../shared/appDataTypes'
@@ -30,6 +31,7 @@ type Props = {
   deleteSelectedNodes: () => void
   runNode: (nodeId: string) => void
   runFrom: (nodeId: string) => void
+  unarchiveNode: (archiveNodeId: string, memberId: string) => void
   apiSettings: APISettings
   language: Language
   canRunFromPreds: boolean
@@ -42,6 +44,7 @@ export function NodeSidebar({
   deleteSelectedNodes,
   runNode,
   runFrom,
+  unarchiveNode,
   apiSettings,
   language,
   canRunFromPreds,
@@ -51,6 +54,7 @@ export function NodeSidebar({
   const [showManualRepoRequired, setShowManualRepoRequired] = useState(false)
   const [isEditingName, setIsEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
+  const [selectedMember, setSelectedMember] = useState<ArchivedMember | null>(null)
 
   const getOutputText = useCallback(() => {
     if (!selectedNode) return ''
@@ -64,6 +68,7 @@ export function NodeSidebar({
     if (!selectedNode) return
     setIsEditingName(false)
     setNameDraft((selectedNode.data.customName ?? '').trim())
+    setSelectedMember(null)
   }, [selectedNode?.id])
 
   // Multi-select: don't show sidebar (use MultiSelectInfo instead)
@@ -208,7 +213,12 @@ export function NodeSidebar({
             ) : (
               <div className="sfArchiveMembers">
                 {archiveData.members.map((member, idx) => (
-                  <div key={`${member.id}-${idx}`} className="sfArchiveMember">
+                  <div
+                    key={`${member.id}-${idx}`}
+                    className="sfArchiveMember"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setSelectedMember(member)}
+                  >
                     <span className="sfArchiveMemberType" title={member.type}>
                       {member.type}
                     </span>
@@ -497,36 +507,34 @@ export function NodeSidebar({
         {/* Actions Section */}
         <div className="sfSectionTitle">{t(language, 'sidebar_actions')}</div>
         <div className="sfButtonGroup">
-          {selectedNode.type !== 'archive' && (
-            <>
-              {/* @@@ Disabled button tooltip - disabled <button> won't reliably show title, so wrap it */}
-              <span className="sfButtonWrap" title={predsBlockedTitle}>
-                <button
-                  onClick={() => runNode(selectedNode.id)}
-                  disabled={isLocked || predsBlocked}
-                  style={predsBlocked ? { pointerEvents: 'none' } : undefined}
-                >
-                  {t(language, 'sidebar_run')}
-                </button>
-              </span>
-              <span className="sfButtonWrap" title={predsBlockedTitle}>
-                <button
-                  onClick={() => runFrom(selectedNode.id)}
-                  disabled={isLocked || predsBlocked}
-                  style={predsBlocked ? { pointerEvents: 'none' } : undefined}
-                >
-                  {t(language, 'sidebar_chain')}
-                </button>
-              </span>
-            </>
-          )}
+          <>
+            {/* @@@ Disabled button tooltip - disabled <button> won't reliably show title, so wrap it */}
+            <span className="sfButtonWrap" title={predsBlockedTitle}>
+              <button
+                onClick={() => runNode(selectedNode.id)}
+                disabled={isLocked || predsBlocked}
+                style={predsBlocked ? { pointerEvents: 'none' } : undefined}
+              >
+                {t(language, 'sidebar_run')}
+              </button>
+            </span>
+            <span className="sfButtonWrap" title={predsBlockedTitle}>
+              <button
+                onClick={() => runFrom(selectedNode.id)}
+                disabled={isLocked || predsBlocked}
+                style={predsBlocked ? { pointerEvents: 'none' } : undefined}
+              >
+                {t(language, 'sidebar_chain')}
+              </button>
+            </span>
+          </>
           <button
             onClick={() =>
               patchSelectedNode((n) => {
                 if (n.type !== 'archive') return resetNodeRuntime(n)
                 return {
                   ...n,
-                  data: { ...n.data, members: [], status: 'idle', error: null, output: null },
+                  data: { ...n.data, status: 'idle', error: null, output: null },
                 }
               })
             }
@@ -595,6 +603,21 @@ export function NodeSidebar({
           closeLabel={t(language, 'modal_close')}
           hintClose={t(language, 'output_hint_close')}
           closeTitle={t(language, 'modal_close_esc')}
+        />
+
+        <ArchivedMemberModal
+          isOpen={!!selectedMember}
+          member={selectedMember}
+          onClose={() => setSelectedMember(null)}
+          onUnarchive={(memberId) => {
+            if (selectedNode.type !== 'archive') return
+            if (isLocked) {
+              window.alert('Node is locked')
+              return
+            }
+            unarchiveNode(selectedNode.id, memberId)
+            setSelectedMember(null)
+          }}
         />
 
         {/* Error Display */}

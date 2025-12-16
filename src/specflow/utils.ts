@@ -149,12 +149,12 @@ const CONNECTION_MATRIX: Record<AppNode['type'], Record<AppNode['type'], boolean
     archive: false,
   },
   archive: {
-    instruction: false,
-    'code-search-conductor': false,
+    instruction: true,
+    'code-search-conductor': true,
     'manual-import': false,
-    'code-search': false,
+    'code-search': true,
     'context-converter': false,
-    llm: false,
+    llm: true,
     archive: false,
   },
 }

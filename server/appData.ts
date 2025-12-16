@@ -43,8 +43,8 @@ type ArchivedMember = {
 
 type ArchiveData = {
   title: string
-  status: 'idle'
-  error: null
+  status: NodeStatus
+  error: string | null
   locked: boolean
   muted: boolean
   customName?: string
@@ -52,7 +52,7 @@ type ArchiveData = {
   width?: number
   height?: number
   members: ArchivedMember[]
-  output: null
+  output: string | null
 }
 
 export type AppNode =
@@ -233,10 +233,8 @@ function normalizeNode(raw: unknown): AppNode | null {
       data: {
         ...base,
         title: normalizeString(data.title, 'Archive'),
-        status: 'idle',
-        error: null,
         members,
-        output: null,
+        output: typeof data.output === 'string' ? data.output : null,
       },
     }
   }
@@ -477,15 +475,13 @@ function normalizeAppData(raw: unknown): AppData {
         })
         .filter((e) => e.id && e.source && e.target)
 
-      const archiveNodeIds = new Set(nodes.filter((n) => n.type === 'archive').map((n) => n.id))
-      const edgesWithoutArchive = edges.filter((e) => !archiveNodeIds.has(e.source) && !archiveNodeIds.has(e.target))
       const viewport = normalizeViewport(canvas.viewport)
 
       return {
         id,
         name: normalizeString(tab.name, 'Canvas'),
         createdAt: normalizeString(tab.createdAt, now),
-        canvas: { nodes, edges: edgesWithoutArchive, viewport },
+        canvas: { nodes, edges, viewport },
       }
     })
     .filter(isNonNull)

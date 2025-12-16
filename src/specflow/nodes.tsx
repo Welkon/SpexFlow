@@ -354,14 +354,15 @@ export function ManualImportNodeView({
 
 export function ArchiveNodeView({ data, selected }: NodeProps<ArchiveNode>) {
   const memberCount = data.members.length
-  const subtitle = `${memberCount} archived node${memberCount !== 1 ? 's' : ''}`
+  const hint = `${memberCount} archived node${memberCount !== 1 ? 's' : ''}`
+  const subtitle = previewOrHint(data.output ?? '', hint)
 
   return (
     <NodeShell
       title={data.title}
       customName={data.customName}
       customColor={data.customColor}
-      status="idle"
+      status={data.status}
       subtitle={subtitle}
       selected={selected}
       locked={!!data.locked}

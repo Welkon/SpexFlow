@@ -69,8 +69,8 @@ export type ArchivedMember = {
 
 export type ArchiveData = {
   title: string
-  status: 'idle' // Always idle, cannot run
-  error: null
+  status: NodeStatus
+  error: string | null
   locked: boolean
   muted: boolean
   customName?: string
@@ -79,7 +79,7 @@ export type ArchiveData = {
   height?: number
   // Store archived nodes flattened - this ensures associativity
   members: ArchivedMember[]
-  output: null // Never produces output
+  output: string | null
 }
 
 export type ArchiveNode = Node<ArchiveData, 'archive'>

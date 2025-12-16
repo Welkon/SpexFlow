@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react'
-import type { AppData, AppNode, CodeSearchOutput } from '../types'
+import type { AppData, AppNode, ArchiveData, CodeSearchOutput } from '../types'
 import { buildRepoContext, runCodeSearch, runConductor, runLLM, resolveManualImport } from '../api'
 import { mergeCodeSearchOutputs } from '../../../shared/rangeUtils'
 import {
@@ -30,6 +30,7 @@ function getEmptyOutput(nodeType: AppNode['type']): LocalOutput | null {
     case 'instruction':
     case 'context-converter':
     case 'llm':
+    case 'archive':
       return EMPTY_STRING_OUTPUT
     case 'code-search':
       return EMPTY_CODE_SEARCH_LOCAL_OUTPUT
@@ -45,6 +46,7 @@ function getEmptyNodeOutput(nodeType: AppNode['type']): unknown {
     case 'instruction':
     case 'context-converter':
     case 'llm':
+    case 'archive':
       return ''
     case 'code-search':
       return EMPTY_CODE_SEARCH_OUTPUT
@@ -78,6 +80,11 @@ export function useNodeRunner(
     if (node.type === 'context-converter' || node.type === 'instruction' || node.type === 'llm') {
       return node.data.output ? { kind: 'string', value: node.data.output } : null
     }
+    if (node.type === 'archive') {
+      return node.data.output !== null && node.data.output !== undefined
+        ? { kind: 'string', value: node.data.output }
+        : null
+    }
     return null
   }, [])
 
@@ -93,7 +100,7 @@ export function useNodeRunner(
       if (local?.kind === 'string') return local.value
 
       if (!n) return ''
-      if (n.type === 'context-converter' || n.type === 'instruction' || n.type === 'llm')
+      if (n.type === 'context-converter' || n.type === 'instruction' || n.type === 'llm' || n.type === 'archive')
         return n.data.output ?? ''
       return ''
     },
@@ -164,7 +171,7 @@ export function useNodeRunner(
         }
       }
       for (const p of preds) {
-        if (p.type === 'instruction' || p.type === 'llm') {
+        if (p.type === 'instruction' || p.type === 'llm' || p.type === 'archive') {
           const s = getStringOutput(p.id, localOutputs).trim()
           if (s) parts.push(s)
         }
@@ -189,7 +196,6 @@ export function useNodeRunner(
         const node = snapshot.canvas.nodes.find((n) => n.id === nodeId)
         if (!node) throw new Error(`Node not found: ${nodeId}`)
         if (mode === 'single' && node.data.locked) throw new Error('Node is locked')
-        if (node.type === 'archive') throw new Error('Archive nodes cannot be executed')
         throwIfAborted(signal)
 
         const preds = predecessors(snapshot.canvas.nodes, snapshot.canvas.edges, nodeId)
@@ -219,6 +225,34 @@ export function useNodeRunner(
 
             const out = getEmptyOutput(node.type)
             if (out) localOutputs?.set(nodeId, out)
+            return out
+          }
+
+          if (node.type === 'archive') {
+            throwIfAborted(signal)
+            const archiveData = node.data as ArchiveData
+            const lines: string[] = ['## Archived Nodes', '']
+
+            for (const member of archiveData.members) {
+              const name = (member.customName || member.title || '').trim() || '(untitled)'
+              lines.push(`### ${name} (${member.type})`)
+              const archivedAtIso = member.archivedAt
+              const archivedAtLocal = archivedAtIso ? new Date(archivedAtIso).toLocaleString() : ''
+              lines.push(`- Archived At: ${archivedAtIso}${archivedAtLocal ? ` (${archivedAtLocal})` : ''}`)
+              lines.push('')
+              lines.push('```json')
+              lines.push(JSON.stringify(member.snapshot ?? {}, null, 2))
+              lines.push('```')
+              lines.push('')
+            }
+
+            const output = lines.join('\n').trimEnd()
+            patchNodeById(nodeId, (n) => {
+              if (n.type !== 'archive') return n
+              return { ...n, data: { ...n.data, status: 'success', error: null, output } }
+            })
+            const out: LocalOutput = { kind: 'string', value: output }
+            localOutputs?.set(nodeId, out)
             return out
           }
 

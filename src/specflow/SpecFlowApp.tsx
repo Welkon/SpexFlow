@@ -61,6 +61,7 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
     closeTab,
     deleteSelectedNodes,
     archiveSelectedNodes,
+    unarchiveNode,
     updateActiveCanvas,
     updateActiveViewport,
     onNodesChange,
@@ -446,6 +447,7 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
             deleteSelectedNodes={deleteSelectedNodes}
             runNode={(nodeId) => runNode(nodeId).catch(() => {})}
             runFrom={(nodeId) => runFrom(nodeId).catch(() => {})}
+            unarchiveNode={unarchiveNode}
             apiSettings={appData.apiSettings}
             language={language}
             canRunFromPreds={canRunFromPreds}

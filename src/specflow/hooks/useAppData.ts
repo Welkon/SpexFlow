@@ -241,6 +241,64 @@ export function useAppData() {
     setSelected(null)
   }, [updateActiveCanvas])
 
+  const unarchiveNode = useCallback(
+    (archiveNodeId: string, memberIdToUnarchive: string) => {
+      updateActiveCanvas((t) => {
+        const archiveNode = t.canvas.nodes.find((n) => n.id === archiveNodeId)
+        if (!archiveNode || archiveNode.type !== 'archive') return t
+
+        const memberToRestore = archiveNode.data.members.find((m) => m.id === memberIdToUnarchive)
+        if (!memberToRestore) return t
+
+        const snapshot = { ...(memberToRestore.snapshot ?? {}) }
+        const restoredData: Record<string, unknown> = {
+          ...snapshot,
+          status: 'idle',
+          error: null,
+          output: null,
+        }
+        if (memberToRestore.type === 'context-converter') {
+          restoredData.mergedFiles = undefined
+        }
+
+        const restoredNode: AppNode = {
+          id: uid('n'),
+          type: memberToRestore.type,
+          position: { x: archiveNode.position.x + 50, y: archiveNode.position.y + 50 },
+          data: restoredData as any,
+        }
+
+        const remainingMembers = archiveNode.data.members.filter((m) => m.id !== memberIdToUnarchive)
+
+        const updatedNodes =
+          remainingMembers.length === 0
+            ? t.canvas.nodes.filter((n) => n.id !== archiveNodeId)
+            : t.canvas.nodes.map((n) => {
+                if (n.id !== archiveNodeId) return n
+                if (n.type !== 'archive') return n
+                const nextArchiveData: ArchiveData = {
+                  // @@@archive-stale-output - unarchiving changes members; reset runtime/output to avoid stale summaries
+                  ...n.data,
+                  members: remainingMembers,
+                  status: 'idle',
+                  error: null,
+                  output: null,
+                }
+                return { ...n, data: nextArchiveData }
+              })
+
+        return {
+          ...t,
+          canvas: {
+            ...t.canvas,
+            nodes: [...updatedNodes, restoredNode],
+          },
+        }
+      })
+    },
+    [updateActiveCanvas],
+  )
+
   const onNodesChange = useCallback(
     (changes: NodeChange<AppNode>[]) => {
       updateActiveCanvas((t) => {
@@ -467,5 +525,6 @@ export function useAppData() {
     patchSelectedNode,
     patchNodeById,
     archiveSelectedNodes,
+    unarchiveNode,
   }
 }

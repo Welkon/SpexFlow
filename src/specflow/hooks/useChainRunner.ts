@@ -57,7 +57,6 @@ export function useChainRunner(
       const tabNow = getActiveTab(appDataRef.current)
       const start = tabNow.canvas.nodes.find((n) => n.id === nodeId)
       if (start?.data.locked) return
-      if (start?.type === 'archive') throw new Error('Archive nodes cannot be executed')
 
       const localOutputs = new Map<string, LocalOutput>()
       const tabSnapshot = getActiveTab(appDataRef.current)
