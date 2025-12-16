@@ -18,7 +18,7 @@ SpexFlow 是一个基于 React Flow 的可视化 context/spec 工作流工具。
 
 **更大的画布**：把一些可复用的 context/指令块当作"积木"保存起来，需要更新时只 rerun 那个节点：
 
-![SpexFlow workflow](docs/images/specflow-workflow.png)
+<img width="2770" height="1686" alt="image" src="https://github.com/user-attachments/assets/b0d105d5-f203-405a-b18f-44071302ce3f" />
 
 ## 你能用它做什么
 
