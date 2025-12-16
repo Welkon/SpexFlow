@@ -18,7 +18,7 @@ It's optimized for **"finish one well-defined feature in one shot"** rather than
 
 **A larger canvas** where you keep reusable context blocks and rerun only the parts that changed:
 
-![SpexFlow workflow](docs/images/specflow-workflow.png)
+<img width="2770" height="1686" alt="image" src="https://github.com/user-attachments/assets/b0d105d5-f203-405a-b18f-44071302ce3f" />
 
 ## What You Build With It
 
