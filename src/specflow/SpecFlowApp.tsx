@@ -109,18 +109,44 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
   }, [activeTab.canvas.nodes])
 
   const rfEdges = useMemo(() => {
+    const selectedNodeIds = selected?.nodeIds?.length ? new Set(selected.nodeIds) : null
+    const hasSelectionFocus = !!selectedNodeIds
     return activeTab.canvas.edges.map((edge) => {
+      const isEdgeSelected = !!edge.selected
       const isConnectedToMuted = mutedNodeIds.has(edge.source) || mutedNodeIds.has(edge.target)
-      if (!isConnectedToMuted) return edge
+      const isConnectedToSelected = selectedNodeIds
+        ? selectedNodeIds.has(edge.source) || selectedNodeIds.has(edge.target)
+        : false
+      const isInFocus = isEdgeSelected || isConnectedToSelected
+
+      const baseOpacity = typeof edge.style?.opacity === 'number' ? edge.style.opacity : 1
+      // @@@edge focus - selection dims others; muted still stacks via multiplication
+      const selectionFactor = hasSelectionFocus ? (isInFocus ? 1 : 0.25) : 1
+      const muteFactor = isConnectedToMuted ? 0.4 : 1
+      const nextOpacity = baseOpacity * selectionFactor * muteFactor
+
+      const shouldBold = isEdgeSelected || (hasSelectionFocus && isConnectedToSelected)
+      const baseStrokeWidth =
+        typeof edge.style?.strokeWidth === 'number' ? edge.style.strokeWidth : undefined
+      const nextStrokeWidth = shouldBold
+        ? Math.max(baseStrokeWidth ?? 0, 3.5)
+        : baseStrokeWidth
+
+      const needsOpacityChange = Math.abs(nextOpacity - baseOpacity) > 0.0001
+      const needsBoldChange = shouldBold && nextStrokeWidth !== edge.style?.strokeWidth
+      if (!needsOpacityChange && !needsBoldChange) return edge
+
       return {
         ...edge,
+        ...(shouldBold ? { zIndex: Math.max(edge.zIndex ?? 0, 2) } : {}),
         style: {
           ...edge.style,
-          opacity: 0.4,
+          opacity: nextOpacity,
+          ...(shouldBold ? { strokeWidth: nextStrokeWidth } : {}),
         },
       }
     })
-  }, [activeTab.canvas.edges, mutedNodeIds])
+  }, [activeTab.canvas.edges, mutedNodeIds, selected])
 
   // Live viewport ref for immediate access (not debounced)
   const liveViewportRef = useRef<Viewport>(activeTab.canvas.viewport ?? { x: 0, y: 0, zoom: 1 })
