@@ -56,7 +56,7 @@ const STATUS_PILL: Record<
   error: { bg: '#ffecec', border: '#eb5757', text: '#b13b3b', dot: '#eb5757', glyph: '×' },
 }
 
-const HANDLE_STYLE = { width: 10, height: 10, background: '#666' } as const
+const HANDLE_STYLE = { width: 10, height: 10, background: '#666', zIndex: 5 } as const
 
 function NodeShell(props: {
   title: string
@@ -71,6 +71,7 @@ function NodeShell(props: {
   const pill = STATUS_PILL[props.status]
   const displayTitle = (props.customName ?? '').trim() || props.title
   const surface = nodeSurfaceFromCustomColor(props.customColor)
+  const overlayColorAlpha = props.muted ? 0.5 : 0.35
   return (
     <div
       style={{
@@ -81,11 +82,33 @@ function NodeShell(props: {
         padding: 10,
         fontSize: 12,
         boxShadow: props.selected ? '0 0 0 3px rgba(0, 110, 255, 0.25)' : 'none',
-        opacity: props.locked ? 0.92 : props.muted ? 0.6 : 1,
+        position: 'relative',
+        opacity: props.muted ? 0.7 : 1,
       }}
     >
       <Handle type="target" position={Position.Left} style={HANDLE_STYLE} />
       <Handle type="source" position={Position.Right} style={HANDLE_STYLE} />
+
+      {/* @@@state overlay - absolute + pointerEvents none keeps drag/connect behavior intact */}
+      {(props.locked || props.muted) && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            pointerEvents: 'none',
+            zIndex: 1,
+            color: `rgba(0, 0, 0, ${overlayColorAlpha})`,
+          }}
+        >
+          {props.locked && <LockIcon size={38} />}
+          {props.muted && <MuteIcon size={38} />}
+        </div>
+      )}
 
       <div
         style={{
@@ -100,24 +123,6 @@ function NodeShell(props: {
           <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {displayTitle}
           </span>
-          {props.locked && (
-            <span
-              style={{ display: 'inline-flex', alignItems: 'center', opacity: 0.75 }}
-              title="locked"
-              aria-label="locked"
-            >
-              <LockIcon size={14} />
-            </span>
-          )}
-          {props.muted && (
-            <span
-              style={{ display: 'inline-flex', alignItems: 'center', opacity: 0.75 }}
-              title="muted"
-              aria-label="muted"
-            >
-              <MuteIcon size={14} />
-            </span>
-          )}
         </div>
 
         <span
