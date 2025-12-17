@@ -130,7 +130,7 @@ Then copy the LLM output and paste it into your coding agent.
 ### `context-converter`
 
 - Purpose: turn `{ explanation, files }` into a single line-numbered context string.
-- Input: one or more `code-search` / `manual-import` predecessors.
+- Input: one or more `code-search` / `manual-import` / `context-converter` predecessors.
 - Config: `fullFile` (full files) vs ranges.
 - Behavior: merges and deduplicates overlapping/adjacent line ranges across all predecessors (per repo) before building context.
 - UI: shows the merged file ranges in the sidebar ("Merged File Ranges").
@@ -156,7 +156,7 @@ The app enforces a connection matrix (invalid edges are rejected). The current r
 | **code-search-conductor**            | ❌          | ❌                    | ❌           | ✅          | ❌                | ❌  |
 | **manual-import**                    | ❌          | ❌                    | ❌           | ❌          | ✅                | ❌  |
 | **code-search**                      | ❌          | ❌                    | ❌           | ❌          | ✅                | ❌  |
-| **context-converter**                | ✅          | ✅                    | ❌           | ✅          | ❌                | ✅  |
+| **context-converter**                | ✅          | ✅                    | ❌           | ✅          | ✅                | ✅  |
 | **llm**                              | ✅          | ✅                    | ❌           | ✅          | ❌                | ✅  |
 
 ## UI Guide

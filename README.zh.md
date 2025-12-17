@@ -130,7 +130,7 @@ instruction → code-search → context-converter → llm
 ### `context-converter`
 
 - 作用：把 `{ explanation, files }` 变成一段带行号的上下文文本。
-- 输入：一个或多个 `code-search` / `manual-import` 上游节点。
+- 输入：一个或多个 `code-search` / `manual-import` / `context-converter` 上游节点。
 - 配置：`fullFile`（整文件）或 ranges。
 - 行为：会在构建上下文前，对所有上游结果（按 repo）做文件行范围的合并与去重（重叠/相邻 range 会合并）。
 - UI：侧边栏会展示合并后的文件范围（"合并后的文件范围"）。
@@ -156,7 +156,7 @@ instruction → code-search → context-converter → llm
 | **code-search-conductor**         | ❌          | ❌                    | ❌           | ✅          | ❌                | ❌  |
 | **manual-import**                 | ❌          | ❌                    | ❌           | ❌          | ✅                | ❌  |
 | **code-search**                   | ❌          | ❌                    | ❌           | ❌          | ✅                | ❌  |
-| **context-converter**             | ✅          | ✅                    | ❌           | ✅          | ❌                | ✅  |
+| **context-converter**             | ✅          | ✅                    | ❌           | ✅          | ✅                | ✅  |
 | **llm**                           | ✅          | ✅                    | ❌           | ✅          | ❌                | ✅  |
 
 典型工作流：
