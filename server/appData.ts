@@ -8,6 +8,7 @@ import type {
   CodeSearchConductorData,
   CodeSearchData,
   ConductorOutput,
+  ContextSource,
   ContextConverterData,
   InstructionData,
   LLMData,
@@ -154,6 +155,39 @@ function normalizeLineRangesRecord(raw: unknown): Record<string, [number, number
   }
 
   return Object.keys(out).length > 0 ? out : undefined
+}
+
+function normalizeStringArray(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const out: string[] = []
+  for (const item of raw) {
+    if (typeof item !== 'string') continue
+    const v = item.trim()
+    if (!v) continue
+    out.push(v)
+  }
+  return out.length ? out : undefined
+}
+
+function normalizeContextSources(raw: unknown): ContextSource[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const out: ContextSource[] = []
+  for (const item of raw) {
+    const obj = asRecord(item)
+    if (!obj) continue
+    const repoPath = normalizeString(obj.repoPath).trim()
+    const sourceNodeId = normalizeString(obj.sourceNodeId).trim()
+    if (!repoPath || !sourceNodeId) continue
+    const files = normalizeLineRangesRecord(obj.files)
+    if (!files) continue
+    out.push({
+      repoPath,
+      sourceNodeId,
+      explanation: normalizeString(obj.explanation),
+      files,
+    })
+  }
+  return out.length ? out : undefined
 }
 
 function normalizeNode(raw: unknown): AppNode | null {
@@ -318,6 +352,10 @@ function normalizeNode(raw: unknown): AppNode | null {
 
   if (type === 'context-converter') {
     const mergedFiles = normalizeLineRangesRecord(data.mergedFiles)
+    const contextSources = normalizeContextSources(data.contextSources)
+    const repoPaths =
+      normalizeStringArray(data.repoPaths) ??
+      (contextSources ? [...new Set(contextSources.map((s) => s.repoPath))] : undefined)
     return {
       id,
       type,
@@ -327,6 +365,8 @@ function normalizeNode(raw: unknown): AppNode | null {
         fullFile: normalizeBool(data.fullFile, false),
         output: typeof data.output === 'string' ? data.output : null,
         mergedFiles,
+        contextSources,
+        repoPaths,
       },
     }
   }

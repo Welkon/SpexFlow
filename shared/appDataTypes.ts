@@ -23,6 +23,13 @@ export type CodeSearchOutput = {
   files: Record<string, [number, number][]>
 }
 
+export type ContextSource = {
+  repoPath: string
+  sourceNodeId: string
+  explanation: string
+  files: Record<string, [number, number][]>
+}
+
 export type ManualImportItem = {
   kind: 'file' | 'dir'
   relPath: string
@@ -45,6 +52,9 @@ export type ContextConverterData = BaseNodeData & {
   fullFile: boolean
   output: string | null
   mergedFiles?: Record<string, [number, number][]>
+  // Canonical structured inputs used for context-converter → context-converter chaining.
+  contextSources?: ContextSource[]
+  repoPaths?: string[]
 }
 
 export type InstructionData = BaseNodeData & {

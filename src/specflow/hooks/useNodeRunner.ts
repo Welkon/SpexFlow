@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react'
-import type { AppData, AppNode, ArchiveData, CodeSearchOutput } from '../types'
+import type { AppData, AppNode, ArchiveData, CodeSearchOutput, ContextSource } from '../types'
 import { buildRepoContext, runCodeSearch, runConductor, runLLM, resolveManualImport } from '../api'
 import { mergeCodeSearchOutputs } from '../../../shared/rangeUtils'
 import {
@@ -12,7 +12,7 @@ import {
 } from '../utils'
 
 export type LocalOutput =
-  | { kind: 'string'; value: string }
+  | { kind: 'string'; value: string; contextSources?: ContextSource[] }
   | { kind: 'code-search'; value: CodeSearchOutput; repoPath: string }
   | { kind: 'conductor'; value: Record<string, string> }
 
@@ -78,7 +78,13 @@ export function useNodeRunner(
       return node.data.output ? { kind: 'conductor', value: node.data.output } : null
     }
     if (node.type === 'context-converter' || node.type === 'instruction' || node.type === 'llm') {
-      return node.data.output ? { kind: 'string', value: node.data.output } : null
+      return node.data.output
+        ? {
+            kind: 'string',
+            value: node.data.output,
+            ...(node.type === 'context-converter' ? { contextSources: node.data.contextSources } : {}),
+          }
+        : null
     }
     if (node.type === 'archive') {
       return node.data.output !== null && node.data.output !== undefined
@@ -161,6 +167,24 @@ export function useNodeRunner(
     [appDataRef],
   )
 
+  const getContextSources = useCallback(
+    (nodeId: string, localOutputs?: Map<string, LocalOutput>): ContextSource[] | null => {
+      const snap = getActiveTab(appDataRef.current)
+      const n = snap.canvas.nodes.find((x) => x.id === nodeId)
+
+      // Mute check: muted nodes contribute no structured context
+      if (n?.data.muted) return []
+
+      const local = localOutputs?.get(nodeId)
+      if (local?.kind === 'string' && Array.isArray(local.contextSources)) return local.contextSources
+
+      if (!n) return null
+      if (n.type === 'context-converter') return n.data.contextSources ?? null
+      return null
+    },
+    [appDataRef],
+  )
+
   const concatPredStrings = useCallback(
     (preds: AppNode[], localOutputs?: Map<string, LocalOutput>) => {
       const parts: string[] = []
@@ -217,7 +241,9 @@ export function useNodeRunner(
               data: {
                 ...n.data,
                 output: emptyOutput,
-                ...(n.type === 'context-converter' ? { mergedFiles: undefined } : {}),
+                ...(n.type === 'context-converter'
+                  ? { mergedFiles: undefined, contextSources: undefined, repoPaths: undefined }
+                  : {}),
                 status: 'success',
                 error: null,
               },
@@ -516,41 +542,76 @@ export function useNodeRunner(
 
           if (node.type === 'context-converter') {
             throwIfAborted(signal)
-            const searchPreds = preds.filter((p) => p.type === 'code-search' || p.type === 'manual-import')
-            if (searchPreds.length === 0)
-              throw new Error('Context converter requires a code-search/manual-import predecessor.')
+            const searchPreds = preds.filter((p) => p.type === 'code-search' || p.type === 'manual-import').sort((a, b) => a.id.localeCompare(b.id))
+            const ctxPreds = preds.filter((p) => p.type === 'context-converter').sort((a, b) => a.id.localeCompare(b.id))
+            if (searchPreds.length === 0 && ctxPreds.length === 0) {
+              throw new Error('Context converter requires a code-search/manual-import/context-converter predecessor.')
+            }
 
-            const byRepo = new Map<
-              string,
-              { outputs: Array<{ explanation: string; files: CodeSearchOutput['files'] }>; explanations: string[] }
-            >()
+            // @@@context-sources - keep atomic per-node context pieces so context-converter merges are associative/idempotent
+            const sourcesByKey = new Map<string, ContextSource>()
 
             for (const p of searchPreds) {
               const out = getCodeSearchOutput(p.id, localOutputs)
               if (!out) throw new Error('Code-search predecessor has no output.')
+              if (Object.keys(out.files ?? {}).length === 0) continue
               const repoPath = getCodeSearchRepoPath(p.id, localOutputs)
-              const entry = byRepo.get(repoPath) ?? { outputs: [], explanations: [] }
-              entry.outputs.push({ explanation: out.explanation, files: out.files })
-              if (out.explanation) entry.explanations.push(out.explanation)
-              byRepo.set(repoPath, entry)
+              const key = `${repoPath}\n${p.id}`
+              if (!sourcesByKey.has(key)) {
+                sourcesByKey.set(key, { repoPath, sourceNodeId: p.id, explanation: out.explanation, files: out.files })
+              }
+            }
+
+            for (const p of ctxPreds) {
+              const predSources = getContextSources(p.id, localOutputs)
+              if (predSources === null) {
+                throw new Error('Context-converter predecessor has no structured context. Re-run it to enable chaining.')
+              }
+              for (const s of predSources) {
+                const key = `${s.repoPath}\n${s.sourceNodeId}`
+                if (!sourcesByKey.has(key)) sourcesByKey.set(key, s)
+              }
+            }
+
+            const contextSources = [...sourcesByKey.values()].sort((a, b) => {
+              const repo = a.repoPath.localeCompare(b.repoPath)
+              if (repo !== 0) return repo
+              return a.sourceNodeId.localeCompare(b.sourceNodeId)
+            })
+            if (contextSources.length === 0) {
+              throw new Error('Context converter requires at least one predecessor with file context.')
             }
 
             const contexts: string[] = []
             const allMergedFiles: Record<string, Array<[number, number]>> = {}
 
-            for (const [repoPath, { outputs, explanations }] of byRepo.entries()) {
-              const mergedFiles = mergeCodeSearchOutputs(outputs)
+            const byRepo = new Map<string, ContextSource[]>()
+            for (const s of contextSources) {
+              const arr = byRepo.get(s.repoPath) ?? []
+              arr.push(s)
+              byRepo.set(s.repoPath, arr)
+            }
+
+            const repoPaths = [...byRepo.keys()].sort()
+
+            for (const repoPath of repoPaths) {
+              const sources = byRepo.get(repoPath) ?? []
+              const mergedFiles = mergeCodeSearchOutputs(sources.map((s) => ({ files: s.files })))
               const mergedFilesForDisplay = node.data.fullFile
                 ? Object.fromEntries(Object.keys(mergedFiles).map((p) => [p, [[1, -1]] as [number, number][]]))
                 : mergedFiles
               Object.assign(allMergedFiles, mergedFilesForDisplay)
 
+              const explanation = sources
+                .map((s) => ({ id: s.sourceNodeId, text: (s.explanation ?? '').trim() }))
+                .filter((x) => x.text)
+                .sort((a, b) => a.id.localeCompare(b.id))
+                .map((x) => x.text)
+                .join('\n\n---\n\n')
+
               const text = await buildRepoContext({
                 repoPath,
-                explanation: explanations
-                  .map((x) => x.trim())
-                  .filter(Boolean)
-                  .join('\n\n---\n\n'),
+                explanation,
                 files: mergedFiles,
                 fullFile: node.data.fullFile,
                 signal,
@@ -567,12 +628,14 @@ export function useNodeRunner(
                   ...n.data,
                   output: text,
                   mergedFiles: allMergedFiles,
+                  contextSources,
+                  repoPaths,
                   status: 'success',
                   error: null,
                 },
               }
             })
-            const out: LocalOutput = { kind: 'string', value: text }
+            const out: LocalOutput = { kind: 'string', value: text, contextSources }
             localOutputs?.set(nodeId, out)
             return out
           }

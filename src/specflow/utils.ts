@@ -42,7 +42,15 @@ export function resetNodeRuntime(node: AppNode): AppNode {
   if (node.type === 'context-converter') {
     return {
       ...node,
-      data: { ...node.data, status: 'idle', error: null, output: null, mergedFiles: undefined },
+      data: {
+        ...node.data,
+        status: 'idle',
+        error: null,
+        output: null,
+        mergedFiles: undefined,
+        contextSources: undefined,
+        repoPaths: undefined,
+      },
     } as AppNode
   }
   return { ...node, data: { ...node.data, status: 'idle', error: null, output: null } } as AppNode
@@ -60,6 +68,8 @@ export function resetNodeRuntimeForPaste(node: AppNode): AppNode {
         muted: false,
         output: null,
         mergedFiles: undefined,
+        contextSources: undefined,
+        repoPaths: undefined,
       },
     } as AppNode
   }
@@ -135,7 +145,7 @@ const CONNECTION_MATRIX: Record<AppNode['type'], Record<AppNode['type'], boolean
     'code-search-conductor': true,
     'manual-import': false,
     'code-search': true,
-    'context-converter': false,
+    'context-converter': true,
     llm: true,
     archive: false,
   },

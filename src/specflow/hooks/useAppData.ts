@@ -259,6 +259,8 @@ export function useAppData() {
         }
         if (memberToRestore.type === 'context-converter') {
           restoredData.mergedFiles = undefined
+          restoredData.contextSources = undefined
+          restoredData.repoPaths = undefined
         }
 
         const restoredNode: AppNode = {
