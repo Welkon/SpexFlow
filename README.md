@@ -18,7 +18,7 @@ It's optimized for **"finish one well-defined feature in one shot"** rather than
 
 **A larger canvas** where you keep reusable context blocks and rerun only the parts that changed:
 
-<img width="2770" height="1686" alt="image" src="https://github.com/user-attachments/assets/b0d105d5-f203-405a-b18f-44071302ce3f" />
+<img width="2770" height="1696" alt="image" src="https://github.com/user-attachments/assets/c1fd8f25-da1f-4d5b-85ed-73cabfceee65" />
 
 **Two hops searching and planning**
 
