@@ -20,6 +20,10 @@ It's optimized for **"finish one well-defined feature in one shot"** rather than
 
 <img width="2770" height="1686" alt="image" src="https://github.com/user-attachments/assets/b0d105d5-f203-405a-b18f-44071302ce3f" />
 
+**Two hops searching and planning**
+
+<img width="2758" height="1690" alt="image" src="https://github.com/user-attachments/assets/eebb0f6f-9c56-4258-ba2c-f3ab18058e0d" />
+
 ## What You Build With It
 
 SpexFlow loads a local code repo and lets you run a small node-based workflow:
