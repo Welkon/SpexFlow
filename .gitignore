@@ -27,3 +27,6 @@ dist-ssr
 .llmkey
 data.json
 backup/*
+
+# Local canvases
+canvases/

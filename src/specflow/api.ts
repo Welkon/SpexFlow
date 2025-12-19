@@ -1,5 +1,17 @@
-import type { AppData, CodeSearchOutput } from './types'
+import type { Edge } from '@xyflow/react'
+import type { AppData, AppNode, CodeSearchOutput } from './types'
 import type { ManualImportItem } from '../../shared/appDataTypes'
+
+export type SavedCanvasFile = {
+  version: 1
+  id: string
+  name: string
+  savedAt: string
+  canvas: {
+    nodes: AppNode[]
+    edges: Edge[]
+  }
+}
 
 export async function fetchAppData(): Promise<AppData> {
   const res = await fetch('/api/app-data')
@@ -20,6 +32,38 @@ export async function saveAppData(data: AppData): Promise<void> {
   if (!res.ok) {
     throw new Error(typeof body?.error === 'string' ? body.error : JSON.stringify(body))
   }
+}
+
+export async function listCanvasFiles(): Promise<{ files: Array<{ name: string; path: string; modifiedAt: string }> }> {
+  const res = await fetch('/api/canvases')
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(typeof data?.error === 'string' ? data.error : JSON.stringify(data))
+  }
+  return data as { files: Array<{ name: string; path: string; modifiedAt: string }> }
+}
+
+export async function saveCanvasFile(fileName: string, canvas: SavedCanvasFile): Promise<{ path: string }> {
+  const res = await fetch('/api/canvases/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileName, canvas }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(typeof data?.error === 'string' ? data.error : JSON.stringify(data))
+  }
+  if (typeof (data as any)?.path !== 'string') throw new Error('Invalid /api/canvases/save response')
+  return data as { path: string }
+}
+
+export async function loadCanvasFile(p: string): Promise<SavedCanvasFile> {
+  const res = await fetch(`/api/canvases/load?path=${encodeURIComponent(p)}`)
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(typeof data?.error === 'string' ? data.error : JSON.stringify(data))
+  }
+  return data as SavedCanvasFile
 }
 
 export async function runCodeSearch(args: { repoPath: string; query: string; debugMessages?: boolean; signal?: AbortSignal }) {

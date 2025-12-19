@@ -125,6 +125,7 @@ export type Tab<N, E> = {
   name: string
   createdAt: string
   canvas: Canvas<N, E>
+  savedFilePath?: string
 }
 
 export type AppData<N, E> = {

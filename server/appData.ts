@@ -516,11 +516,13 @@ function normalizeAppData(raw: unknown): AppData {
         .filter((e) => e.id && e.source && e.target)
 
       const viewport = normalizeViewport(canvas.viewport)
+      const savedFilePath = typeof tab.savedFilePath === 'string' ? tab.savedFilePath.trim() : ''
 
       return {
         id,
         name: normalizeString(tab.name, 'Canvas'),
         createdAt: normalizeString(tab.createdAt, now),
+        ...(savedFilePath ? { savedFilePath } : {}),
         canvas: { nodes, edges, viewport },
       }
     })

@@ -1,5 +1,5 @@
 import express from 'express'
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { runRelaceSearch } from './relaceSearch.js'
 import { loadAppData, saveAppData, getCodeSearchApiKey } from './appData.js'
@@ -12,6 +12,12 @@ const app = express()
 const PORT = 3001
 
 app.use(express.json({ limit: '10mb' }))
+
+const CANVASES_DIR = path.join(process.cwd(), 'canvases')
+
+async function ensureCanvasesDir() {
+  await mkdir(CANVASES_DIR, { recursive: true })
+}
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' })
@@ -121,6 +127,69 @@ app.put('/api/app-data', async (req, res) => {
   try {
     await saveAppData(req.body)
     res.json({ ok: true })
+  } catch (err: unknown) {
+    console.error(err)
+    const message = err instanceof Error ? err.message : String(err)
+    res.status(500).json({ error: message })
+  }
+})
+
+app.get('/api/canvases', async (_req, res) => {
+  try {
+    await ensureCanvasesDir()
+    const files = await readdir(CANVASES_DIR)
+    const canvasFiles = files.filter((f) => f.endsWith('.canvas.json'))
+    const result = await Promise.all(
+      canvasFiles.map(async (f) => {
+        const fullPath = path.join(CANVASES_DIR, f)
+        const stats = await stat(fullPath)
+        return {
+          name: f.replace('.canvas.json', ''),
+          path: f,
+          modifiedAt: stats.mtime.toISOString(),
+        }
+      }),
+    )
+    res.json({ files: result })
+  } catch (err: unknown) {
+    console.error(err)
+    const message = err instanceof Error ? err.message : String(err)
+    res.status(500).json({ error: message })
+  }
+})
+
+app.post('/api/canvases/save', async (req, res) => {
+  try {
+    await ensureCanvasesDir()
+    const fileNameRaw = req.body?.fileName
+    const canvas = req.body?.canvas
+    if (typeof fileNameRaw !== 'string' || !fileNameRaw.trim()) throw new Error('fileName and canvas required')
+    if (!canvas || typeof canvas !== 'object') throw new Error('fileName and canvas required')
+
+    const safeName = fileNameRaw.trim().replace(/[^a-zA-Z0-9_-]/g, '_')
+    if (!safeName) throw new Error('Invalid fileName')
+
+    const filePath = path.join(CANVASES_DIR, `${safeName}.canvas.json`)
+    await writeFile(filePath, JSON.stringify(canvas, null, 2))
+    res.json({ ok: true, path: `${safeName}.canvas.json` })
+  } catch (err: unknown) {
+    console.error(err)
+    const message = err instanceof Error ? err.message : String(err)
+    res.status(500).json({ error: message })
+  }
+})
+
+app.get('/api/canvases/load', async (req, res) => {
+  try {
+    await ensureCanvasesDir()
+    const fileName = req.query.path
+    if (typeof fileName !== 'string' || !fileName.trim()) throw new Error('path required')
+    if (fileName.includes('/') || fileName.includes('\\')) throw new Error('Invalid path')
+
+    const filePath = path.join(CANVASES_DIR, fileName)
+    const content = await readFile(filePath, 'utf-8')
+    const canvas = JSON.parse(content) as unknown
+    res.json(canvas)
   } catch (err: unknown) {
     console.error(err)
     const message = err instanceof Error ? err.message : String(err)

@@ -3,7 +3,7 @@ import type { Edge } from '@xyflow/react'
 import { addEdge, applyEdgeChanges, applyNodeChanges } from '@xyflow/react'
 import type { Connection, EdgeChange, NodeChange } from '@xyflow/react'
 import type { AppData, AppNode, ArchiveData, ArchiveNode, ArchivedMember, Canvas, NonArchiveNode, Tab, Viewport } from '../types'
-import { fetchAppData, saveAppData } from '../api'
+import { fetchAppData, loadCanvasFile, saveAppData, saveCanvasFile, type SavedCanvasFile } from '../api'
 import { getActiveTab, isValidConnection, uid, updateNode } from '../utils'
 
 export type Selected = { nodeIds: string[]; primaryId: string } | null
@@ -14,6 +14,10 @@ function isDimensionChange<N extends AppNode>(c: NodeChange<N>): c is Extract<No
 
 function emptyCanvas(): Canvas {
   return { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }
+}
+
+function stripCanvasExt(p: string) {
+  return p.endsWith('.canvas.json') ? p.slice(0, -'.canvas.json'.length) : p
 }
 
 export function useAppData() {
@@ -502,6 +506,96 @@ export function useAppData() {
     [updateActiveCanvas],
   )
 
+  const saveCurrentCanvas = useCallback(async () => {
+    const snap = appDataRef.current
+    if (!snap) throw new Error('App data not loaded')
+    const tab = getActiveTab(snap)
+    if (!tab.savedFilePath) return { needsSaveAs: true as const }
+
+    const canvasFile: SavedCanvasFile = {
+      version: 1,
+      id: tab.id,
+      name: tab.name,
+      savedAt: new Date().toISOString(),
+      canvas: {
+        nodes: tab.canvas.nodes,
+        edges: tab.canvas.edges,
+      },
+    }
+
+    await saveCanvasFile(stripCanvasExt(tab.savedFilePath), canvasFile)
+    return { needsSaveAs: false as const }
+  }, [])
+
+  const saveCanvasAs = useCallback(async (fileName: string) => {
+    const snap = appDataRef.current
+    if (!snap) throw new Error('App data not loaded')
+    const tab = getActiveTab(snap)
+
+    const canvasFile: SavedCanvasFile = {
+      version: 1,
+      id: tab.id,
+      name: tab.name,
+      savedAt: new Date().toISOString(),
+      canvas: {
+        nodes: tab.canvas.nodes,
+        edges: tab.canvas.edges,
+      },
+    }
+
+    const result = await saveCanvasFile(fileName, canvasFile)
+    setAppData((prev) => {
+      if (!prev) throw new Error('App data not loaded')
+      return {
+        ...prev,
+        tabs: prev.tabs.map((t) => (t.id === tab.id ? { ...t, savedFilePath: result.path } : t)),
+      }
+    })
+    return result
+  }, [])
+
+  const loadCanvas = useCallback(async (filePath: string) => {
+    const loaded = await loadCanvasFile(filePath)
+
+    const existing = appDataRef.current?.tabs.find((t) => t.id === loaded.id) ?? null
+    if (existing) {
+      setSelected(null)
+      setAppData((prev) => {
+        if (!prev) throw new Error('App data not loaded')
+        return {
+          ...prev,
+          activeTabId: existing.id,
+          tabs: prev.tabs.map((t) => (t.id === existing.id ? { ...t, savedFilePath: filePath } : t)),
+        }
+      })
+      return { switched: true as const }
+    }
+
+    const now = new Date().toISOString()
+    const newTab: Tab = {
+      id: loaded.id,
+      name: loaded.name,
+      createdAt: now,
+      savedFilePath: filePath,
+      canvas: {
+        nodes: loaded.canvas.nodes,
+        edges: loaded.canvas.edges,
+        viewport: { x: 0, y: 0, zoom: 1 },
+      },
+    }
+
+    setSelected(null)
+    setAppData((prev) => {
+      if (!prev) throw new Error('App data not loaded')
+      return {
+        ...prev,
+        tabs: [...prev.tabs, newTab],
+        activeTabId: newTab.id,
+      }
+    })
+    return { switched: false as const }
+  }, [])
+
   return {
     appData,
     setAppData,
@@ -528,5 +622,8 @@ export function useAppData() {
     patchNodeById,
     archiveSelectedNodes,
     unarchiveNode,
+    saveCurrentCanvas,
+    saveCanvasAs,
+    loadCanvas,
   }
 }

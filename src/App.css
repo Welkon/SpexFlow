@@ -146,6 +146,68 @@
   padding-left: 12px;
 }
 
+/* Dropdown menu */
+.sfDropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.sfDropdownMenu {
+  position: fixed;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  z-index: 1000;
+  min-width: 180px;
+  overflow: hidden;
+}
+
+.sfDropdownItem {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333;
+}
+
+.sfDropdownItem:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* Top-right save buttons (override modal .sfSaveBtn) */
+.sfTabActions .sfSaveBtn {
+  padding: 6px 12px;
+  border: 1px solid #dadce0;
+  border-radius: 999px;
+  background: #fff;
+  color: #3c4043;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.sfTabActions .sfSaveBtn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: #c7c7c7;
+}
+
+.sfTabActions .sfSaveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sfTabActions .sfSaveBtn.sfSaved {
+  background: #1e8e3e;
+  border-color: #1e8e3e;
+  color: #fff;
+}
+
 .sfBody {
   flex: 1;
   display: flex;
