@@ -1109,6 +1109,17 @@
   cursor: not-allowed;
 }
 
+.sfButtonGroup--tight {
+  align-items: center;
+}
+
+.sfButtonGroup--tight button {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
 /* ===== Output Section ===== */
 .sfOutputSection {
   margin-top: 16px;

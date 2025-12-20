@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { APISettings, LLMProvider, LLMModel } from '../types'
 import type { Language } from '../../../shared/appDataTypes'
 import { t } from '../i18n'
+import { SettingsModalShell } from './SettingsModalShell'
 
 type Props = {
   isOpen: boolean
@@ -117,215 +118,208 @@ export function APISettingsModal({ isOpen, settings, language, onLanguageChange,
     onClose()
   }
 
-  function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) {
-      onClose()
-    }
-  }
-
   return (
-    <div className="sfModalBackdrop" onClick={handleBackdropClick}>
-      <div className="sfSettingsModal">
-        <div className="sfModalHeader">
-          <span className="sfModalTitle">{t(language, 'settings_title')}</span>
-          <button className="sfModalCloseBtn" onClick={onClose} title={t(language, 'close')}>×</button>
-        </div>
-
-        <div className="sfFieldGroup" style={{ padding: '0 16px' }}>
-          <label className="sfFieldLabel">{t(language, 'language')}</label>
-          <select
-            className="sfSelect"
-            value={language}
-            onChange={(e) => onLanguageChange(e.target.value as Language)}
-          >
-            <option value="en">{t(language, 'language_en')}</option>
-            <option value="zh">{t(language, 'language_zh')}</option>
-          </select>
-        </div>
-
-        {/* Tab Switcher */}
-        <div className="sfSettingsTabs">
-          <button
-            className={`sfSettingsTab ${activeTab === 'llm' ? 'active' : ''}`}
-            onClick={() => setActiveTab('llm')}
-          >
-            {t(language, 'settings_tab_llm')}
-          </button>
-          <button
-            className={`sfSettingsTab ${activeTab === 'codesearch' ? 'active' : ''}`}
-            onClick={() => setActiveTab('codesearch')}
-          >
-            {t(language, 'settings_tab_codesearch')}
-          </button>
-        </div>
-
-        <div className="sfSettingsContent">
-          {activeTab === 'llm' && (
-            <div className="sfLLMSettings">
-              {/* Provider List */}
-              <div className="sfProviderList">
-                <div className="sfProviderListHeader">
-                  <span>{t(language, 'providers')}</span>
-                  <button className="sfAddBtn" onClick={addProvider}>{t(language, 'add')}</button>
-                </div>
-                {localSettings.llm.providers.map(provider => (
-                  <div
-                    key={provider.id}
-                    className={`sfProviderItem ${selectedProviderId === provider.id ? 'active' : ''}`}
-                    onClick={() => setSelectedProviderId(provider.id)}
-                  >
-                    <span>{provider.name}</span>
-                    {provider.apiKey && <span className="sfKeyIndicator">🔑</span>}
-                  </div>
-                ))}
-              </div>
-
-              {/* Provider Details */}
-              {selectedProvider && (
-                <div className="sfProviderDetails">
-                  <div className="sfFieldGroup">
-                    <label className="sfFieldLabel">{t(language, 'provider_name')}</label>
-                    <input
-                      className="sfInput"
-                      value={selectedProvider.name}
-                      onChange={(e) => updateProvider(selectedProvider.id, { name: e.target.value })}
-                      placeholder="e.g., OpenAI"
-                    />
-                  </div>
-
-                  <div className="sfFieldGroup">
-                    <label className="sfFieldLabel">{t(language, 'endpoint')}</label>
-                    <input
-                      className="sfInput"
-                      value={selectedProvider.endpoint}
-                      onChange={(e) => updateProvider(selectedProvider.id, { endpoint: e.target.value })}
-                      placeholder="e.g., https://api.openai.com/v1"
-                    />
-                  </div>
-
-                  <div className="sfFieldGroup">
-                    <label className="sfFieldLabel">{t(language, 'api_key')}</label>
-                    <input
-                      className="sfInput"
-                      type="password"
-                      value={selectedProvider.apiKey}
-                      onChange={(e) => updateProvider(selectedProvider.id, { apiKey: e.target.value })}
-                      placeholder="sk-..."
-                    />
-                  </div>
-
-                  <div className="sfModelsSection">
-                    <div className="sfModelsSectionHeader">
-                      <span className="sfFieldLabel">{t(language, 'models')}</span>
-                      <button className="sfAddBtn" onClick={() => addModel(selectedProvider.id)}>
-                        {t(language, 'add_model')}
-                      </button>
-                    </div>
-
-                    {selectedProvider.models.map(model => (
-                      <div key={model.id} className="sfModelRow">
-                        <input
-                          className="sfInput sfModelIdInput"
-                          value={model.id}
-                          onChange={(e) => updateModel(selectedProvider.id, model.id, { id: e.target.value })}
-                          placeholder={t(language, 'model_id')}
-                        />
-                        <input
-                          className="sfInput sfModelNameInput"
-                          value={model.name}
-                          onChange={(e) => updateModel(selectedProvider.id, model.id, { name: e.target.value })}
-                          placeholder={t(language, 'display_name')}
-                        />
-                        <button
-                          className="sfRemoveBtn"
-                          onClick={() => removeModel(selectedProvider.id, model.id)}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-
-                    {selectedProvider.models.length === 0 && (
-                      <div className="sfEmptyModels">{t(language, 'no_models_configured')}</div>
-                    )}
-                  </div>
-
-                  <button
-                    className="sfRemoveProviderBtn"
-                    onClick={() => removeProvider(selectedProvider.id)}
-                  >
-                    {t(language, 'remove_provider')}
-                  </button>
-                </div>
-              )}
-
-              {!selectedProvider && localSettings.llm.providers.length === 0 && (
-                <div className="sfNoProviders">
-                  <p>{t(language, 'no_providers_configured')}</p>
-                  <button className="sfAddBtn" onClick={addProvider}>{t(language, 'add_provider')}</button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'codesearch' && (
-            <div className="sfCodeSearchSettings">
-              <div className="sfFieldGroup">
-                <label className="sfFieldLabel">{t(language, 'active_provider')}</label>
-                <select
-                  className="sfSelect"
-                  value={localSettings.codeSearch.activeProvider}
-                  onChange={(e) => setLocalSettings(prev => ({
-                    ...prev,
-                    codeSearch: { ...prev.codeSearch, activeProvider: e.target.value }
-                  }))}
-                >
-                  {localSettings.codeSearch.providers.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* API Key for active provider */}
-              {(() => {
-                const activeProvider = localSettings.codeSearch.providers.find(
-                  p => p.id === localSettings.codeSearch.activeProvider
-                )
-                if (!activeProvider) return null
-                return (
-                  <div className="sfFieldGroup">
-                    <label className="sfFieldLabel">{activeProvider.name} {t(language, 'api_key_for_provider')}</label>
-                    <input
-                      className="sfInput"
-                      type="password"
-                      value={activeProvider.apiKey}
-                      onChange={(e) => setLocalSettings(prev => ({
-                        ...prev,
-                        codeSearch: {
-                          ...prev.codeSearch,
-                          providers: prev.codeSearch.providers.map(p =>
-                            p.id === activeProvider.id ? { ...p, apiKey: e.target.value } : p
-                          )
-                        }
-                      }))}
-                      placeholder={t(language, 'enter_api_key_placeholder')}
-                    />
-                  </div>
-                )
-              })()}
-
-              <p className="sfSettingsNote">
-                {t(language, 'codesearch_note')}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="sfModalFooter">
+    <SettingsModalShell
+      isOpen={isOpen}
+      title={t(language, 'settings_title')}
+      onClose={onClose}
+      closeTitle={t(language, 'close')}
+      footer={
+        <>
           <button className="sfCancelBtn" onClick={onClose}>{t(language, 'cancel')}</button>
           <button className="sfSaveBtn" onClick={handleSave}>{t(language, 'save_settings')}</button>
-        </div>
+        </>
+      }
+    >
+      <div className="sfFieldGroup" style={{ padding: '0 16px' }}>
+        <label className="sfFieldLabel">{t(language, 'language')}</label>
+        <select
+          className="sfSelect"
+          value={language}
+          onChange={(e) => onLanguageChange(e.target.value as Language)}
+        >
+          <option value="en">{t(language, 'language_en')}</option>
+          <option value="zh">{t(language, 'language_zh')}</option>
+        </select>
       </div>
-    </div>
+
+      {/* Tab Switcher */}
+      <div className="sfSettingsTabs">
+        <button
+          className={`sfSettingsTab ${activeTab === 'llm' ? 'active' : ''}`}
+          onClick={() => setActiveTab('llm')}
+        >
+          {t(language, 'settings_tab_llm')}
+        </button>
+        <button
+          className={`sfSettingsTab ${activeTab === 'codesearch' ? 'active' : ''}`}
+          onClick={() => setActiveTab('codesearch')}
+        >
+          {t(language, 'settings_tab_codesearch')}
+        </button>
+      </div>
+
+      <div className="sfSettingsContent">
+        {activeTab === 'llm' && (
+          <div className="sfLLMSettings">
+            {/* Provider List */}
+            <div className="sfProviderList">
+              <div className="sfProviderListHeader">
+                <span>{t(language, 'providers')}</span>
+                <button className="sfAddBtn" onClick={addProvider}>{t(language, 'add')}</button>
+              </div>
+              {localSettings.llm.providers.map(provider => (
+                <div
+                  key={provider.id}
+                  className={`sfProviderItem ${selectedProviderId === provider.id ? 'active' : ''}`}
+                  onClick={() => setSelectedProviderId(provider.id)}
+                >
+                  <span>{provider.name}</span>
+                  {provider.apiKey && <span className="sfKeyIndicator">🔑</span>}
+                </div>
+              ))}
+            </div>
+
+            {/* Provider Details */}
+            {selectedProvider && (
+              <div className="sfProviderDetails">
+                <div className="sfFieldGroup">
+                  <label className="sfFieldLabel">{t(language, 'provider_name')}</label>
+                  <input
+                    className="sfInput"
+                    value={selectedProvider.name}
+                    onChange={(e) => updateProvider(selectedProvider.id, { name: e.target.value })}
+                    placeholder="e.g., OpenAI"
+                  />
+                </div>
+
+                <div className="sfFieldGroup">
+                  <label className="sfFieldLabel">{t(language, 'endpoint')}</label>
+                  <input
+                    className="sfInput"
+                    value={selectedProvider.endpoint}
+                    onChange={(e) => updateProvider(selectedProvider.id, { endpoint: e.target.value })}
+                    placeholder="e.g., https://api.openai.com/v1"
+                  />
+                </div>
+
+                <div className="sfFieldGroup">
+                  <label className="sfFieldLabel">{t(language, 'api_key')}</label>
+                  <input
+                    className="sfInput"
+                    type="password"
+                    value={selectedProvider.apiKey}
+                    onChange={(e) => updateProvider(selectedProvider.id, { apiKey: e.target.value })}
+                    placeholder="sk-..."
+                  />
+                </div>
+
+                <div className="sfModelsSection">
+                  <div className="sfModelsSectionHeader">
+                    <span className="sfFieldLabel">{t(language, 'models')}</span>
+                    <button className="sfAddBtn" onClick={() => addModel(selectedProvider.id)}>
+                      {t(language, 'add_model')}
+                    </button>
+                  </div>
+
+                  {selectedProvider.models.map(model => (
+                    <div key={model.id} className="sfModelRow">
+                      <input
+                        className="sfInput sfModelIdInput"
+                        value={model.id}
+                        onChange={(e) => updateModel(selectedProvider.id, model.id, { id: e.target.value })}
+                        placeholder={t(language, 'model_id')}
+                      />
+                      <input
+                        className="sfInput sfModelNameInput"
+                        value={model.name}
+                        onChange={(e) => updateModel(selectedProvider.id, model.id, { name: e.target.value })}
+                        placeholder={t(language, 'display_name')}
+                      />
+                      <button
+                        className="sfRemoveBtn"
+                        onClick={() => removeModel(selectedProvider.id, model.id)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+
+                  {selectedProvider.models.length === 0 && (
+                    <div className="sfEmptyModels">{t(language, 'no_models_configured')}</div>
+                  )}
+                </div>
+
+                <button
+                  className="sfRemoveProviderBtn"
+                  onClick={() => removeProvider(selectedProvider.id)}
+                >
+                  {t(language, 'remove_provider')}
+                </button>
+              </div>
+            )}
+
+            {!selectedProvider && localSettings.llm.providers.length === 0 && (
+              <div className="sfNoProviders">
+                <p>{t(language, 'no_providers_configured')}</p>
+                <button className="sfAddBtn" onClick={addProvider}>{t(language, 'add_provider')}</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'codesearch' && (
+          <div className="sfCodeSearchSettings">
+            <div className="sfFieldGroup">
+              <label className="sfFieldLabel">{t(language, 'active_provider')}</label>
+              <select
+                className="sfSelect"
+                value={localSettings.codeSearch.activeProvider}
+                onChange={(e) => setLocalSettings(prev => ({
+                  ...prev,
+                  codeSearch: { ...prev.codeSearch, activeProvider: e.target.value }
+                }))}
+              >
+                {localSettings.codeSearch.providers.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* API Key for active provider */}
+            {(() => {
+              const activeProvider = localSettings.codeSearch.providers.find(
+                p => p.id === localSettings.codeSearch.activeProvider
+              )
+              if (!activeProvider) return null
+              return (
+                <div className="sfFieldGroup">
+                  <label className="sfFieldLabel">{activeProvider.name} {t(language, 'api_key_for_provider')}</label>
+                  <input
+                    className="sfInput"
+                    type="password"
+                    value={activeProvider.apiKey}
+                    onChange={(e) => setLocalSettings(prev => ({
+                      ...prev,
+                      codeSearch: {
+                        ...prev.codeSearch,
+                        providers: prev.codeSearch.providers.map(p =>
+                          p.id === activeProvider.id ? { ...p, apiKey: e.target.value } : p
+                        )
+                      }
+                    }))}
+                    placeholder={t(language, 'enter_api_key_placeholder')}
+                  />
+                </div>
+              )
+            })()}
+
+            <p className="sfSettingsNote">
+              {t(language, 'codesearch_note')}
+            </p>
+          </div>
+        )}
+      </div>
+    </SettingsModalShell>
   )
 }

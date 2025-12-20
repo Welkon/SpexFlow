@@ -3,7 +3,7 @@ import { ReactFlow, Background, MiniMap } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
 import { useAppData, useNodeRunner, useChainRunner, useClipboard, useHotkeys } from './hooks'
-import { NodeSidebar, ToolbarButton, MultiSelectInfo, APISettingsModal, SettingsIcon, DropdownMenu, CanvasFilePicker, ConfirmModal } from './components'
+import { NodeSidebar, ToolbarButton, MultiSelectInfo, APISettingsModal, SettingsIcon, DropdownMenu, CanvasFilePicker, CanvasSettingsModal, CanvasIcon } from './components'
 import type { APISettings, AppData, Viewport } from './types'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import {
@@ -20,7 +20,6 @@ import {
 import { ChainManager } from './ChainManager'
 import { canRunFromPredecessors, predecessors, sameIdSet } from './utils'
 import { t } from './i18n'
-import { listCanvasFiles, loadCanvasFile } from './api'
 import {
   CodeSearchConductorNodeView,
   CodeSearchNodeView,
@@ -58,7 +57,6 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
     loadError,
     setActiveTabId,
     addTab,
-    renameTab,
     closeTab,
     deleteSelectedNodes,
     archiveSelectedNodes,
@@ -71,9 +69,11 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
     addNode,
     patchSelectedNode,
     patchNodeById,
-    saveCurrentCanvas,
-    saveCanvasAs,
     loadCanvas,
+    renameCanvas,
+    deleteCanvas,
+    duplicateCanvas,
+    updateCanvasSettings,
   } = props
 
   const appDataRef = props.appDataRef as RefObject<AppData>
@@ -108,13 +108,16 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
 
   const [isDragSelecting, setIsDragSelecting] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [isSaveAsOpen, setIsSaveAsOpen] = useState(false)
   const [isLoadPickerOpen, setIsLoadPickerOpen] = useState(false)
-  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
-  const saveStateTimerRef = useRef<number | null>(null)
-  const [overwriteWarning, setOverwriteWarning] = useState<null | { kind: 'save' } | { kind: 'saveAs'; fileName: string }>(null)
+  const [isCanvasSettingsOpen, setIsCanvasSettingsOpen] = useState(false)
+  const [canvasSettingsTabId, setCanvasSettingsTabId] = useState<string | null>(null)
 
   const language = appData.ui.language
+
+  const canvasSettingsTab = useMemo(() => {
+    if (!canvasSettingsTabId) return activeTab
+    return appData.tabs.find((t) => t.id === canvasSettingsTabId) ?? activeTab
+  }, [activeTab, appData.tabs, canvasSettingsTabId])
 
   const mutedNodeIds = useMemo(() => {
     return new Set(activeTab.canvas.nodes.filter((n) => n.data.muted).map((n) => n.id))
@@ -209,88 +212,6 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
     }))
   }, [setAppDataStrict])
 
-  const safeDefaultSaveName = useMemo(() => {
-    const safe = activeTab.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_')
-    return safe || 'canvas'
-  }, [activeTab.name])
-
-  useEffect(() => {
-    return () => {
-      if (saveStateTimerRef.current) window.clearTimeout(saveStateTimerRef.current)
-    }
-  }, [])
-
-  const markSaved = useCallback(() => {
-    setSaveState('saved')
-    if (saveStateTimerRef.current) window.clearTimeout(saveStateTimerRef.current)
-    saveStateTimerRef.current = window.setTimeout(() => setSaveState('idle'), 1500)
-  }, [])
-
-  const doSaveCurrentNoCheck = useCallback(async () => {
-    const result = await saveCurrentCanvas()
-    if (result.needsSaveAs) {
-      setSaveState('idle')
-      setIsSaveAsOpen(true)
-      return
-    }
-    markSaved()
-  }, [markSaved, saveCurrentCanvas])
-
-  const doSaveAsNoCheck = useCallback(async (safeName: string) => {
-    await saveCanvasAs(safeName)
-    markSaved()
-  }, [markSaved, saveCanvasAs])
-
-  const handleSave = useCallback(async () => {
-    setSaveState('saving')
-    try {
-      if (!activeTab.savedFilePath) {
-        setSaveState('idle')
-        setIsSaveAsOpen(true)
-        return
-      }
-
-      const existing = await loadCanvasFile(activeTab.savedFilePath)
-      if (existing.id !== activeTab.id) {
-        setSaveState('idle')
-        setOverwriteWarning({ kind: 'save' })
-        return
-      }
-
-      await doSaveCurrentNoCheck()
-    } catch (err) {
-      setSaveState('idle')
-      alert(String((err as Error)?.message ?? err))
-    }
-  }, [activeTab.id, activeTab.savedFilePath, doSaveCurrentNoCheck])
-
-  const handleSaveAs = useCallback(
-    async (fileNameRaw: string) => {
-      setSaveState('saving')
-      try {
-        const safeName = fileNameRaw.trim().replace(/[^a-zA-Z0-9_-]/g, '_')
-        if (!safeName) throw new Error('Invalid file name')
-
-        const list = await listCanvasFiles()
-        const exists = (list.files ?? []).some((f) => f.path === `${safeName}.canvas.json`)
-        if (exists) {
-          const existing = await loadCanvasFile(`${safeName}.canvas.json`)
-          if (existing.id !== activeTab.id) {
-            setSaveState('idle')
-            setOverwriteWarning({ kind: 'saveAs', fileName: safeName })
-            return
-          }
-        }
-
-        await doSaveAsNoCheck(safeName)
-      } catch (err) {
-        setSaveState('idle')
-        alert(String((err as Error)?.message ?? err))
-      }
-    },
-    [activeTab.id, doSaveAsNoCheck],
-  )
-
   const nodeTypes = useMemo(
     () => ({
       'code-search': CodeSearchNodeView,
@@ -367,7 +288,9 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
               className="sfTabName"
               onDoubleClick={(e) => {
                 e.stopPropagation()
-                renameTab(t.id)
+                setActiveTabId(t.id)
+                setCanvasSettingsTabId(t.id)
+                setIsCanvasSettingsOpen(true)
               }}
               title={t.name}
             >
@@ -398,24 +321,14 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
 
         <div className="sfTabActions">
           <button
-            className={`sfSaveBtn ${saveState === 'saved' ? 'sfSaved' : ''}`}
-            onClick={handleSave}
-            disabled={saveState === 'saving'}
-            title={t(language, 'save')}
+            className="sfSettingsBtn"
+            onClick={() => {
+              setCanvasSettingsTabId(activeTab.id)
+              setIsCanvasSettingsOpen(true)
+            }}
+            title={t(language, 'canvas_settings')}
           >
-            {saveState === 'saved'
-              ? t(language, 'canvas_saved')
-              : saveState === 'saving'
-                ? t(language, 'saving')
-                : t(language, 'save')}
-          </button>
-          <button
-            className="sfSaveBtn"
-            onClick={() => setIsSaveAsOpen(true)}
-            disabled={saveState === 'saving'}
-            title={t(language, 'save_as')}
-          >
-            {t(language, 'save_as')}
+            <CanvasIcon />
           </button>
           <button
             className="sfSettingsBtn"
@@ -592,42 +505,15 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
         }}
       />
 
-      <CanvasFilePicker
-        isOpen={isSaveAsOpen}
-        mode="save"
+      <CanvasSettingsModal
+        isOpen={isCanvasSettingsOpen}
+        tab={canvasSettingsTab}
         language={language}
-        defaultFileName={safeDefaultSaveName}
-        onClose={() => setIsSaveAsOpen(false)}
-        onConfirmSave={(name) => {
-          setIsSaveAsOpen(false)
-          handleSaveAs(name)
-        }}
-      />
-
-      <ConfirmModal
-        isOpen={overwriteWarning !== null}
-        title={t(language, 'confirm_overwrite_title')}
-        message={t(language, 'confirm_overwrite_message')}
-        confirmLabel={t(language, 'confirm')}
-        cancelLabel={t(language, 'cancel')}
-        onCancel={() => setOverwriteWarning(null)}
-        onConfirm={() => {
-          const w = overwriteWarning
-          setOverwriteWarning(null)
-          if (!w) return
-          setSaveState('saving')
-          if (w.kind === 'save') {
-            doSaveCurrentNoCheck().catch((e) => {
-              setSaveState('idle')
-              alert(String((e as Error)?.message ?? e))
-            })
-            return
-          }
-          doSaveAsNoCheck(w.fileName).catch((e) => {
-            setSaveState('idle')
-            alert(String((e as Error)?.message ?? e))
-          })
-        }}
+        onClose={() => setIsCanvasSettingsOpen(false)}
+        onRename={renameCanvas}
+        onDuplicate={duplicateCanvas}
+        onDelete={deleteCanvas}
+        onUpdateSettings={updateCanvasSettings}
       />
     </div>
   )

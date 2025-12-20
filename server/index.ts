@@ -1,5 +1,5 @@
 import express from 'express'
-import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, stat, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { runRelaceSearch } from './relaceSearch.js'
 import { loadAppData, saveAppData, getCodeSearchApiKey } from './appData.js'
@@ -190,6 +190,23 @@ app.get('/api/canvases/load', async (req, res) => {
     const content = await readFile(filePath, 'utf-8')
     const canvas = JSON.parse(content) as unknown
     res.json(canvas)
+  } catch (err: unknown) {
+    console.error(err)
+    const message = err instanceof Error ? err.message : String(err)
+    res.status(500).json({ error: message })
+  }
+})
+
+app.delete('/api/canvases', async (req, res) => {
+  try {
+    await ensureCanvasesDir()
+    const fileName = req.query.path
+    if (typeof fileName !== 'string' || !fileName.trim()) throw new Error('path required')
+    if (fileName.includes('/') || fileName.includes('\\')) throw new Error('Invalid path')
+
+    const filePath = path.join(CANVASES_DIR, fileName)
+    await unlink(filePath)
+    res.json({ ok: true })
   } catch (err: unknown) {
     console.error(err)
     const message = err instanceof Error ? err.message : String(err)

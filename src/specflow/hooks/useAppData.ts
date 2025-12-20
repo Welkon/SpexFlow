@@ -3,8 +3,8 @@ import type { Edge } from '@xyflow/react'
 import { addEdge, applyEdgeChanges, applyNodeChanges } from '@xyflow/react'
 import type { Connection, EdgeChange, NodeChange } from '@xyflow/react'
 import type { AppData, AppNode, ArchiveData, ArchiveNode, ArchivedMember, Canvas, NonArchiveNode, Tab, Viewport } from '../types'
-import { fetchAppData, loadCanvasFile, saveAppData, saveCanvasFile, type SavedCanvasFile } from '../api'
-import { getActiveTab, isValidConnection, uid, updateNode } from '../utils'
+import { deleteCanvasFile, fetchAppData, listCanvasFiles, loadCanvasFile, saveAppData, saveCanvasFile, type SavedCanvasFile } from '../api'
+import { deepClone, getActiveTab, isValidConnection, uid, updateNode } from '../utils'
 
 export type Selected = { nodeIds: string[]; primaryId: string } | null
 
@@ -18,6 +18,25 @@ function emptyCanvas(): Canvas {
 
 function stripCanvasExt(p: string) {
   return p.endsWith('.canvas.json') ? p.slice(0, -'.canvas.json'.length) : p
+}
+
+function sanitizeCanvasFileName(name: string) {
+  const safe = name.trim().replace(/[^a-zA-Z0-9_-]/g, '_')
+  return safe || 'canvas'
+}
+
+function buildCanvasFile(tab: Tab): SavedCanvasFile {
+  return {
+    version: 1,
+    id: tab.id,
+    name: tab.name,
+    savedAt: new Date().toISOString(),
+    settings: tab.canvasSettings ? { ...tab.canvasSettings } : undefined,
+    canvas: {
+      nodes: tab.canvas.nodes,
+      edges: tab.canvas.edges,
+    },
+  }
 }
 
 export function useAppData() {
@@ -53,14 +72,35 @@ export function useAppData() {
     setIsLoading(true)
     setLoadError(null)
     fetchAppData()
-      .then((data) => {
+      .then(async (data) => {
         if (!alive) return
         if (!data || !Array.isArray(data.tabs) || data.tabs.length === 0) {
           throw new Error('Invalid app data: missing tabs')
         }
-        getActiveTab(data)
-        appDataRef.current = data
-        setAppData(data)
+        const hydratedTabs: Tab[] = []
+        for (const tab of data.tabs) {
+          if (!tab.savedFilePath) {
+            hydratedTabs.push(tab)
+            continue
+          }
+          const loaded = await loadCanvasFile(tab.savedFilePath)
+          if (loaded.id !== tab.id) {
+            throw new Error(`Canvas ID mismatch for ${tab.name}`)
+          }
+          hydratedTabs.push({
+            ...tab,
+            canvasSettings: loaded.settings ?? tab.canvasSettings,
+            canvas: {
+              ...tab.canvas,
+              nodes: loaded.canvas.nodes,
+              edges: loaded.canvas.edges,
+            },
+          })
+        }
+        const hydrated = { ...data, tabs: hydratedTabs }
+        getActiveTab(hydrated)
+        appDataRef.current = hydrated
+        setAppData(hydrated)
       })
       .catch((e) => {
         if (!alive) return
@@ -82,8 +122,48 @@ export function useAppData() {
     if (!appData) return
     if (saveTimer.current) window.clearTimeout(saveTimer.current)
     saveTimer.current = window.setTimeout(() => {
-      saveAppData(appData).catch((e) => {
+      const snap = appDataRef.current
+      if (!snap) return
+      saveAppData(snap).catch((e) => {
         console.error(e)
+      })
+
+      const tab = getActiveTab(snap)
+      const canvasFile = buildCanvasFile(tab)
+      if (!tab.savedFilePath) {
+        const fileName = sanitizeCanvasFileName(tab.name)
+        listCanvasFiles()
+          .then((list) => {
+            const targetPath = `${fileName}.canvas.json`
+            const exists = (list.files ?? []).some((f) => f.path === targetPath)
+            if (!exists) return null
+            return loadCanvasFile(targetPath)
+          })
+          .then((existing) => {
+            if (existing && existing.id !== tab.id) {
+              throw new Error(`Canvas name "${tab.name}" is already used by another file`)
+            }
+            return saveCanvasFile(fileName, canvasFile)
+          })
+          .then((result) => {
+            setAppData((prev) => {
+              if (!prev) throw new Error('App data not loaded')
+              return {
+                ...prev,
+                tabs: prev.tabs.map((t) => (t.id === tab.id ? { ...t, savedFilePath: result.path } : t)),
+              }
+            })
+          })
+          .catch((e) => {
+            console.error(e)
+            setLoadError(String((e as Error)?.message ?? e))
+          })
+        return
+      }
+
+      saveCanvasFile(stripCanvasExt(tab.savedFilePath), canvasFile).catch((e) => {
+        console.error(e)
+        setLoadError(String((e as Error)?.message ?? e))
       })
     }, 400)
     return () => {
@@ -138,18 +218,35 @@ export function useAppData() {
     })
   }, [])
 
-  const renameTab = useCallback((tabId: string) => {
+  const renameCanvas = useCallback(async (tabId: string, nextNameRaw: string) => {
     const snap = appDataRef.current
     if (!snap) throw new Error('App data not loaded')
     const tab = snap.tabs.find((t) => t.id === tabId)
-    if (!tab) return
-    const nextName = window.prompt('Canvas name?', tab.name) ?? ''
-    if (!nextName.trim()) return
+    if (!tab) throw new Error('Canvas not found')
+    const nextName = nextNameRaw.trim()
+    if (!nextName) throw new Error('Canvas name is required')
+
+    const safeName = sanitizeCanvasFileName(nextName)
+    const targetPath = `${safeName}.canvas.json`
+    const existingList = await listCanvasFiles()
+    const conflict = (existingList.files ?? []).some((f) => f.path === targetPath)
+    if (conflict) {
+      const existing = await loadCanvasFile(targetPath)
+      if (existing.id !== tab.id) throw new Error(`Canvas name "${nextName}" is already used`)
+    }
+
+    const canvasFile = buildCanvasFile({ ...tab, name: nextName })
+    await saveCanvasFile(safeName, canvasFile)
+
+    if (tab.savedFilePath && tab.savedFilePath !== targetPath) {
+      await deleteCanvasFile(tab.savedFilePath)
+    }
+
     setAppData((d) => {
       if (!d) throw new Error('App data not loaded')
       return {
         ...d,
-        tabs: d.tabs.map((t) => (t.id === tabId ? { ...t, name: nextName.trim() } : t)),
+        tabs: d.tabs.map((t) => (t.id === tabId ? { ...t, name: nextName, savedFilePath: targetPath } : t)),
       }
     })
   }, [])
@@ -362,6 +459,7 @@ export function useAppData() {
       const snap = appDataRef.current
       if (!snap) throw new Error('App data not loaded')
       const tabSnap = getActiveTab(snap)
+      const defaultRepoPath = tabSnap.canvasSettings?.defaultRepoPath ?? ''
       const id = uid('n')
       // Place new node at viewport center (use live viewport if provided, else fall back to saved)
       const viewport = liveViewport ?? tabSnap.canvas.viewport ?? { x: 0, y: 0, zoom: 1 }
@@ -386,7 +484,7 @@ export function useAppData() {
             error: null,
             locked: false,
             muted: false,
-            repoPath: '',
+            repoPath: defaultRepoPath,
             query: '',
             debugMessages: false,
             output: null,
@@ -445,7 +543,7 @@ export function useAppData() {
             error: null,
             locked: false,
             muted: false,
-            repoPath: '',
+            repoPath: defaultRepoPath,
             items: [],
             output: null,
           },
@@ -506,54 +604,6 @@ export function useAppData() {
     [updateActiveCanvas],
   )
 
-  const saveCurrentCanvas = useCallback(async () => {
-    const snap = appDataRef.current
-    if (!snap) throw new Error('App data not loaded')
-    const tab = getActiveTab(snap)
-    if (!tab.savedFilePath) return { needsSaveAs: true as const }
-
-    const canvasFile: SavedCanvasFile = {
-      version: 1,
-      id: tab.id,
-      name: tab.name,
-      savedAt: new Date().toISOString(),
-      canvas: {
-        nodes: tab.canvas.nodes,
-        edges: tab.canvas.edges,
-      },
-    }
-
-    await saveCanvasFile(stripCanvasExt(tab.savedFilePath), canvasFile)
-    return { needsSaveAs: false as const }
-  }, [])
-
-  const saveCanvasAs = useCallback(async (fileName: string) => {
-    const snap = appDataRef.current
-    if (!snap) throw new Error('App data not loaded')
-    const tab = getActiveTab(snap)
-
-    const canvasFile: SavedCanvasFile = {
-      version: 1,
-      id: tab.id,
-      name: tab.name,
-      savedAt: new Date().toISOString(),
-      canvas: {
-        nodes: tab.canvas.nodes,
-        edges: tab.canvas.edges,
-      },
-    }
-
-    const result = await saveCanvasFile(fileName, canvasFile)
-    setAppData((prev) => {
-      if (!prev) throw new Error('App data not loaded')
-      return {
-        ...prev,
-        tabs: prev.tabs.map((t) => (t.id === tab.id ? { ...t, savedFilePath: result.path } : t)),
-      }
-    })
-    return result
-  }, [])
-
   const loadCanvas = useCallback(async (filePath: string) => {
     const loaded = await loadCanvasFile(filePath)
 
@@ -577,6 +627,7 @@ export function useAppData() {
       name: loaded.name,
       createdAt: now,
       savedFilePath: filePath,
+      canvasSettings: loaded.settings ?? undefined,
       canvas: {
         nodes: loaded.canvas.nodes,
         edges: loaded.canvas.edges,
@@ -596,6 +647,84 @@ export function useAppData() {
     return { switched: false as const }
   }, [])
 
+  const deleteCanvas = useCallback(async (tabId: string) => {
+    const snap = appDataRef.current
+    if (!snap) throw new Error('App data not loaded')
+    if (snap.tabs.length <= 1) throw new Error('Cannot delete the last canvas')
+    const tab = snap.tabs.find((t) => t.id === tabId)
+    if (!tab) throw new Error('Canvas not found')
+    if (tab.savedFilePath) {
+      await deleteCanvasFile(tab.savedFilePath)
+    }
+
+    setSelected(null)
+    setAppData((d) => {
+      if (!d) throw new Error('App data not loaded')
+      const nextTabs = d.tabs.filter((t) => t.id !== tabId)
+      const nextActive = d.activeTabId === tabId ? (nextTabs[0]?.id ?? null) : d.activeTabId
+      return { ...d, tabs: nextTabs, activeTabId: nextActive }
+    })
+  }, [])
+
+  const duplicateCanvas = useCallback(async (tabId: string, nextNameRaw: string) => {
+    const snap = appDataRef.current
+    if (!snap) throw new Error('App data not loaded')
+    const tab = snap.tabs.find((t) => t.id === tabId)
+    if (!tab) throw new Error('Canvas not found')
+    const nextName = nextNameRaw.trim()
+    if (!nextName) throw new Error('Canvas name is required')
+
+    const safeName = sanitizeCanvasFileName(nextName)
+    const targetPath = `${safeName}.canvas.json`
+    const existingList = await listCanvasFiles()
+    const conflict = (existingList.files ?? []).some((f) => f.path === targetPath)
+    if (conflict) throw new Error(`Canvas name "${nextName}" is already used`)
+
+    const now = new Date().toISOString()
+    const newId = uid('tab')
+    const canvas = deepClone(tab.canvas)
+    const newTab: Tab = {
+      id: newId,
+      name: nextName,
+      createdAt: now,
+      savedFilePath: targetPath,
+      canvasSettings: tab.canvasSettings ? deepClone(tab.canvasSettings) : undefined,
+      canvas,
+    }
+
+    const canvasFile = buildCanvasFile(newTab)
+    await saveCanvasFile(safeName, canvasFile)
+
+    setSelected(null)
+    setAppData((d) => {
+      if (!d) throw new Error('App data not loaded')
+      return {
+        ...d,
+        tabs: [...d.tabs, newTab],
+        activeTabId: newTab.id,
+      }
+    })
+  }, [])
+
+  const updateCanvasSettings = useCallback((tabId: string, patch: { defaultRepoPath?: string }) => {
+    setAppData((d) => {
+      if (!d) throw new Error('App data not loaded')
+      return {
+        ...d,
+        tabs: d.tabs.map((t) => {
+          if (t.id !== tabId) return t
+          return {
+            ...t,
+            canvasSettings: {
+              ...(t.canvasSettings ?? {}),
+              ...patch,
+            },
+          }
+        }),
+      }
+    })
+  }, [])
+
   return {
     appData,
     setAppData,
@@ -609,7 +738,6 @@ export function useAppData() {
     loadError,
     setActiveTabId,
     addTab,
-    renameTab,
     closeTab,
     deleteSelectedNodes,
     updateActiveCanvas,
@@ -622,8 +750,10 @@ export function useAppData() {
     patchNodeById,
     archiveSelectedNodes,
     unarchiveNode,
-    saveCurrentCanvas,
-    saveCanvasAs,
     loadCanvas,
+    renameCanvas,
+    deleteCanvas,
+    duplicateCanvas,
+    updateCanvasSettings,
   }
 }

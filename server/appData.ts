@@ -563,7 +563,21 @@ export async function loadAppData(): Promise<AppData> {
 }
 
 export async function saveAppData(data: AppData): Promise<void> {
-  const raw = JSON.stringify(data, null, 2)
+  const toPersist: AppData = {
+    ...data,
+    tabs: data.tabs.map((tab) => {
+      const { canvasSettings, ...rest } = tab
+      return {
+        ...rest,
+        canvas: {
+          nodes: [],
+          edges: [],
+          viewport: tab.canvas.viewport,
+        },
+      }
+    }),
+  }
+  const raw = JSON.stringify(toPersist, null, 2)
   await writeFile(dataPath, raw, 'utf-8')
 }
 

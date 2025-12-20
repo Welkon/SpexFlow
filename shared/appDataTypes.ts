@@ -120,12 +120,17 @@ export type Canvas<N, E> = {
   viewport: Viewport
 }
 
+export type CanvasSettings = {
+  defaultRepoPath?: string
+}
+
 export type Tab<N, E> = {
   id: string
   name: string
   createdAt: string
   canvas: Canvas<N, E>
   savedFilePath?: string
+  canvasSettings?: CanvasSettings
 }
 
 export type AppData<N, E> = {

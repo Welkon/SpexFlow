@@ -7,6 +7,7 @@ export type SavedCanvasFile = {
   id: string
   name: string
   savedAt: string
+  settings?: { defaultRepoPath?: string }
   canvas: {
     nodes: AppNode[]
     edges: Edge[]
@@ -64,6 +65,14 @@ export async function loadCanvasFile(p: string): Promise<SavedCanvasFile> {
     throw new Error(typeof data?.error === 'string' ? data.error : JSON.stringify(data))
   }
   return data as SavedCanvasFile
+}
+
+export async function deleteCanvasFile(p: string): Promise<void> {
+  const res = await fetch(`/api/canvases?path=${encodeURIComponent(p)}`, { method: 'DELETE' })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(typeof data?.error === 'string' ? data.error : JSON.stringify(data))
+  }
 }
 
 export async function runCodeSearch(args: { repoPath: string; query: string; debugMessages?: boolean; signal?: AbortSignal }) {
