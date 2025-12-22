@@ -1,4 +1,6 @@
 import { useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import { CopyButton } from './CopyButton'
 
 type Props = {
   isOpen: boolean
@@ -8,6 +10,11 @@ type Props = {
   closeLabel?: string
   hintClose?: string
   closeTitle?: string
+  renderMarkdown?: boolean
+  copyLabel?: string
+  copiedLabel?: string
+  titleCopy?: string
+  titleCopied?: string
 }
 
 export function OutputViewerModal({
@@ -18,6 +25,11 @@ export function OutputViewerModal({
   closeLabel = 'Close',
   hintClose = 'Press Escape or click outside to close',
   closeTitle = 'Close (Esc)',
+  renderMarkdown = false,
+  copyLabel,
+  copiedLabel,
+  titleCopy,
+  titleCopied,
 }: Props) {
   // Handle escape key to close
   useEffect(() => {
@@ -46,11 +58,26 @@ export function OutputViewerModal({
       <div className="sfModalContent">
         <div className="sfModalHeader">
           <span className="sfModalTitle">{title}</span>
-          <button className="sfModalCloseBtn" onClick={onClose} title={closeTitle}>
-            ×
-          </button>
+          <div className="sfModalHeaderActions">
+            <CopyButton
+              getText={() => content}
+              label={copyLabel}
+              copiedLabel={copiedLabel}
+              titleCopy={titleCopy}
+              titleCopied={titleCopied}
+            />
+            <button className="sfModalCloseBtn" onClick={onClose} title={closeTitle}>
+              ×
+            </button>
+          </div>
         </div>
-        <pre className="sfOutputViewerContent">{content}</pre>
+        {renderMarkdown ? (
+          <div className="sfOutputViewerContent sfMarkdownContent">
+            <ReactMarkdown>{content}</ReactMarkdown>
+          </div>
+        ) : (
+          <pre className="sfOutputViewerContent">{content}</pre>
+        )}
         <div className="sfModalFooter">
           <span className="sfModalHint">{hintClose}</span>
           <button className="sfModalSaveBtn" onClick={onClose}>

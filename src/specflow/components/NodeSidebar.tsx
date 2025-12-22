@@ -600,6 +600,11 @@ export function NodeSidebar({
           title={`${selectedNode.data.title} - ${outputTitle}`}
           content={getOutputText()}
           onClose={() => setIsOutputModalOpen(false)}
+          renderMarkdown={selectedNode.type === 'llm'}
+          copyLabel={t(language, 'sidebar_copy')}
+          copiedLabel={t(language, 'sidebar_copied')}
+          titleCopy={t(language, 'sidebar_copy_title')}
+          titleCopied={t(language, 'sidebar_copied_title')}
           closeLabel={t(language, 'modal_close')}
           hintClose={t(language, 'output_hint_close')}
           closeTitle={t(language, 'modal_close_esc')}
