@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { CopyButton } from './CopyButton'
 
 type Props = {
@@ -73,7 +74,7 @@ export function OutputViewerModal({
         </div>
         {renderMarkdown ? (
           <div className="sfOutputViewerContent sfMarkdownContent">
-            <ReactMarkdown>{content}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
           </div>
         ) : (
           <pre className="sfOutputViewerContent">{content}</pre>
