@@ -1,13 +1,15 @@
 import { useCallback, useState } from 'react'
 import type { AppData, AppNode, ChainRun, ChainRunStatus, Tab } from '../types'
 import type { LocalOutput, RunMode } from './useNodeRunner'
-import { ChainCancelledError, getActiveTab, isAbortError, resetNodeRuntime, throwIfAborted, uid } from '../utils'
+import { makeRunKey } from './useNodeRunner'
+import { ChainCancelledError, isAbortError, resetNodeRuntime, throwIfAborted, uid } from '../utils'
 
 export function useChainRunner(
   appDataRef: React.RefObject<AppData>,
-  updateActiveCanvas: (patch: (tab: Tab) => Tab) => void,
+  updateCanvasById: (tabId: string, patch: (tab: Tab) => Tab) => void,
   inFlightRuns: React.RefObject<Map<string, Promise<LocalOutput | null>>>,
   runNode: (
+    tabId: string,
     nodeId: string,
     mode: RunMode,
     localOutputs?: Map<string, LocalOutput>,
@@ -16,6 +18,17 @@ export function useChainRunner(
   nodeToLocalOutput: (node: AppNode) => LocalOutput | null,
 ) {
   const [chainRuns, setChainRuns] = useState<ChainRun[]>([])
+
+  const getTabById = useCallback(
+    (tabId: string) => {
+      const snap = appDataRef.current
+      if (!snap) throw new Error('App data not loaded')
+      const tab = snap.tabs.find((t) => t.id === tabId)
+      if (!tab) throw new Error(`Tab not found: ${tabId}`)
+      return tab
+    },
+    [appDataRef],
+  )
 
   const updateChainRun = useCallback((chainId: string, patch: (r: ChainRun) => ChainRun) => {
     setChainRuns((runs) => runs.map((r) => (r.id === chainId ? patch(r) : r)))
@@ -54,12 +67,16 @@ export function useChainRunner(
 
   const runFrom = useCallback(
     async (nodeId: string) => {
-      const tabNow = getActiveTab(appDataRef.current)
+      const snap = appDataRef.current
+      if (!snap) throw new Error('App data not loaded')
+      if (!snap.activeTabId) throw new Error('Active tab not set')
+      const capturedTabId = snap.activeTabId
+      const tabNow = getTabById(capturedTabId)
       const start = tabNow.canvas.nodes.find((n) => n.id === nodeId)
       if (start?.data.locked) return
 
       const localOutputs = new Map<string, LocalOutput>()
-      const tabSnapshot = getActiveTab(appDataRef.current)
+      const tabSnapshot = getTabById(capturedTabId)
       const edges = tabSnapshot.canvas.edges
 
       const predIdsBy = new Map<string, string[]>()
@@ -84,7 +101,7 @@ export function useChainRunner(
         resetSet.add(id)
       }
 
-      if ([...resetSet].some((id) => inFlightRuns.current.has(id))) {
+      if ([...resetSet].some((id) => inFlightRuns.current.has(makeRunKey(capturedTabId, id)))) {
         throw new Error('Some nodes in this chain are running. Wait for them to finish before chaining.')
       }
 
@@ -95,6 +112,7 @@ export function useChainRunner(
       setChainRuns((runs) => [
         {
           id: chainId,
+          tabId: capturedTabId,
           startedAt,
           fromNodeId: nodeId,
           fromNodeTitle: start?.data.title ?? nodeId,
@@ -108,7 +126,7 @@ export function useChainRunner(
       ])
 
       // @@@chain-reset - chain re-runs by resetting runtime fields for reachable, non-locked nodes
-      updateActiveCanvas((t) => ({
+      updateCanvasById(capturedTabId, (t) => ({
         ...t,
         canvas: {
           ...t.canvas,
@@ -120,7 +138,7 @@ export function useChainRunner(
       const visiting = new Set<string>()
 
       async function requireExternalPredSuccess(predId: string) {
-        const inflight = inFlightRuns.current.get(predId)
+        const inflight = inFlightRuns.current.get(makeRunKey(capturedTabId, predId))
         if (inflight) {
           try {
             const out = await inflight
@@ -130,7 +148,7 @@ export function useChainRunner(
           }
         }
 
-        const snap = getActiveTab(appDataRef.current)
+        const snap = getTabById(capturedTabId)
         const pred = snap.canvas.nodes.find((n) => n.id === predId)
         if (!pred || pred.data.status !== 'success') {
           throw new Error(`Predecessor not succeeded: ${predId}`)
@@ -164,7 +182,7 @@ export function useChainRunner(
 
             throwIfAborted(abortController.signal)
 
-            const snap = getActiveTab(appDataRef.current)
+            const snap = getTabById(capturedTabId)
             const node = snap.canvas.nodes.find((n) => n.id === id)
             if (!node) throw new Error(`Node not found: ${id}`)
 
@@ -176,7 +194,7 @@ export function useChainRunner(
               if (node.data.locked) {
                 throw new Error(`Locked node must already be succeeded: ${id}`)
               }
-              const out = await runNode(id, 'chain', localOutputs, abortController.signal)
+              const out = await runNode(capturedTabId, id, 'chain', localOutputs, abortController.signal)
               if (out) localOutputs.set(id, out)
               markChainCompleted(chainId, id)
             }
@@ -211,22 +229,27 @@ export function useChainRunner(
         setChainRuns((runs) => runs.filter((r) => r.id !== chainId))
       }, 2500)
     },
-    [appDataRef, updateActiveCanvas, inFlightRuns, runNode, nodeToLocalOutput, markChainCompleted, markChainFailed, updateChainRun],
+    [appDataRef, getTabById, updateCanvasById, inFlightRuns, runNode, nodeToLocalOutput, markChainCompleted, markChainFailed, updateChainRun],
   )
 
   const resetActiveCanvasAll = useCallback(() => {
-    if (inFlightRuns.current.size > 0) {
+    const snap = appDataRef.current
+    if (!snap) throw new Error('App data not loaded')
+    const activeTabId = snap.activeTabId
+    if (!activeTabId) throw new Error('Active tab not set')
+    const runningInTab = [...inFlightRuns.current.keys()].some((key) => key.startsWith(`${activeTabId}:`))
+    if (runningInTab) {
       window.alert('Some nodes are running. Wait for them to finish before resetting.')
       return
     }
-    updateActiveCanvas((t) => ({
+    updateCanvasById(activeTabId, (t) => ({
       ...t,
       canvas: {
         ...t.canvas,
         nodes: t.canvas.nodes.map(resetNodeRuntime),
       },
     }))
-  }, [inFlightRuns, updateActiveCanvas])
+  }, [appDataRef, inFlightRuns, updateCanvasById])
 
   return {
     chainRuns,

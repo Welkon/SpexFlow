@@ -67,14 +67,14 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
     deleteSelectedNodes,
     archiveSelectedNodes,
     unarchiveNode,
-    updateActiveCanvas,
+    updateCanvasById,
     updateActiveViewport,
     onNodesChange,
     onEdgesChange,
     onConnect,
     addNode,
     patchSelectedNode,
-    patchNodeById,
+    patchNodeByIdInTab,
     loadCanvas,
     renameCanvas,
     deleteCanvas,
@@ -93,11 +93,11 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
     [setAppData],
   )
 
-  const { inFlightRuns, runNode, nodeToLocalOutput } = useNodeRunner(appDataRef, patchNodeById)
+  const { inFlightRuns, runNode, nodeToLocalOutput } = useNodeRunner(appDataRef, patchNodeByIdInTab)
 
   const { chainRuns, cancelChain, runFrom, resetActiveCanvasAll } = useChainRunner(
     appDataRef,
-    updateActiveCanvas,
+    updateCanvasById,
     inFlightRuns,
     runNode,
     nodeToLocalOutput,
@@ -246,6 +246,27 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
     return canRunFromPredecessors(preds)
   }, [activeTab.canvas.edges, activeTab.canvas.nodes, selectedNode?.id])
 
+  const tabStatuses = useMemo(() => {
+    const statuses = new Map<string, 'idle' | 'running' | 'error'>()
+    for (const tab of appData.tabs) {
+      const tabChains = chainRuns.filter((r) => r.tabId === tab.id)
+      const hasRunning = tabChains.some((r) => r.status === 'running')
+      const hasError = tabChains.some((r) => r.status === 'error')
+      if (hasRunning) {
+        statuses.set(tab.id, 'running')
+      } else if (hasError) {
+        statuses.set(tab.id, 'error')
+      } else {
+        statuses.set(tab.id, 'idle')
+      }
+    }
+    return statuses
+  }, [appData.tabs, chainRuns])
+
+  const tabNameById = useMemo(() => {
+    return new Map(appData.tabs.map((tab) => [tab.id, tab.name]))
+  }, [appData.tabs])
+
   const handleQuickLayout = useCallback(
     (layoutType: 'vertical-stack' | 'compact-stack' | 'horizontal-stack') => {
       if (!selected || selected.nodeIds.length < 2) return
@@ -314,16 +335,28 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
 
   return (
     <div className="sfRoot">
-      <ChainManager runs={chainRuns} onCancel={cancelChain} />
+      <ChainManager runs={chainRuns} onCancel={cancelChain} tabNameById={tabNameById} />
 
       {/* Tab bar */}
       <div className="sfTabs">
-        {appData.tabs.map((t) => (
-          <div
-            key={t.id}
-            className={t.id === appData.activeTabId ? 'sfTab sfTabActive' : 'sfTab'}
-            onClick={() => setActiveTabId(t.id)}
-          >
+        {appData.tabs.map((t) => {
+          const status = tabStatuses.get(t.id) ?? 'idle'
+          const tabClass = [
+            'sfTab',
+            t.id === appData.activeTabId ? 'sfTabActive' : null,
+            status !== 'idle' ? `sfTab--${status}` : null,
+          ]
+            .filter(Boolean)
+            .join(' ')
+
+          return (
+            <div
+              key={t.id}
+              className={tabClass}
+              onClick={() => setActiveTabId(t.id)}
+            >
+              {status === 'running' && <span className="sfTabSpinner" />}
+              {status === 'error' && <span className="sfTabError">!</span>}
             <span
               className="sfTabName"
               onDoubleClick={(e) => {
@@ -348,8 +381,9 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
                 ×
               </button>
             )}
-          </div>
-        ))}
+            </div>
+          )
+        })}
 
         <DropdownMenu
           trigger={<button className="sfTabAdd" title={t(language, 'new_empty_canvas')}>+</button>}
@@ -515,7 +549,7 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
             multiSelectCount={selected?.nodeIds.length ?? 0}
             patchSelectedNode={patchSelectedNode}
             deleteSelectedNodes={deleteSelectedNodes}
-            runNode={(nodeId) => runNode(nodeId).catch(() => {})}
+            runNode={(nodeId) => runNode(activeTab.id, nodeId).catch(() => {})}
             runFrom={(nodeId) => runFrom(nodeId).catch(() => {})}
             unarchiveNode={unarchiveNode}
             apiSettings={appData.apiSettings}

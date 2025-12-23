@@ -4,6 +4,7 @@ import type { ChainRun } from './types'
 export function ChainManager(props: {
   runs: ChainRun[]
   onCancel: (id: string) => void
+  tabNameById?: Map<string, string>
 }) {
   const [expanded, setExpanded] = useState(true)
 
@@ -31,6 +32,7 @@ export function ChainManager(props: {
             const total = r.nodeIds.length
             const done = r.completedNodeIds.length
             const pct = total > 0 ? Math.round((done / total) * 100) : 0
+            const tabName = props.tabNameById?.get(r.tabId)
             const statusClass =
               r.status === 'completed'
                 ? 'sfChainMgrStatusDone'
@@ -45,6 +47,7 @@ export function ChainManager(props: {
                 <div className="sfChainMgrItemTitle">
                   Chain from “{r.fromNodeTitle || r.fromNodeId}”
                 </div>
+                {tabName ? <div className="sfChainMgrItemSub">Tab: {tabName}</div> : null}
                 <div className="sfChainMgrProgressRow">
                   <div className="sfChainMgrBar">
                     <div
@@ -76,4 +79,3 @@ export function ChainManager(props: {
     </div>
   )
 }
-

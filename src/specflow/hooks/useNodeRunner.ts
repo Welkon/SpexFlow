@@ -4,7 +4,6 @@ import { buildRepoContext, runCodeSearch, runConductor, runLLM, resolveManualImp
 import { mergeCodeSearchOutputs } from '../../../shared/rangeUtils'
 import {
   ChainCancelledError,
-  getActiveTab,
   isAbortError,
   predecessors,
   canRunFromPredecessors,
@@ -17,6 +16,10 @@ export type LocalOutput =
   | { kind: 'conductor'; value: Record<string, string> }
 
 export type RunMode = 'single' | 'chain'
+
+export function makeRunKey(tabId: string, nodeId: string) {
+  return `${tabId}:${nodeId}`
+}
 
 // Empty output definitions for muted nodes
 const EMPTY_STRING_OUTPUT: LocalOutput = { kind: 'string', value: '' }
@@ -59,9 +62,20 @@ function getEmptyNodeOutput(nodeType: AppNode['type']): unknown {
 
 export function useNodeRunner(
   appDataRef: React.RefObject<AppData>,
-  patchNodeById: (nodeId: string, patch: (n: AppNode) => AppNode) => void,
+  patchNodeByIdInTab: (tabId: string, nodeId: string, patch: (n: AppNode) => AppNode) => void,
 ) {
   const inFlightRuns = useRef(new Map<string, Promise<LocalOutput | null>>())
+
+  const getTabById = useCallback(
+    (tabId: string) => {
+      const snap = appDataRef.current
+      if (!snap) throw new Error('App data not loaded')
+      const tab = snap.tabs.find((t) => t.id === tabId)
+      if (!tab) throw new Error(`Tab not found: ${tabId}`)
+      return tab
+    },
+    [appDataRef],
+  )
 
   const nodeToLocalOutput = useCallback((node: AppNode): LocalOutput | null => {
     if (node.type === 'code-search') {
@@ -95,8 +109,8 @@ export function useNodeRunner(
   }, [])
 
   const getStringOutput = useCallback(
-    (nodeId: string, localOutputs?: Map<string, LocalOutput>): string => {
-      const snap = getActiveTab(appDataRef.current)
+    (tabId: string, nodeId: string, localOutputs?: Map<string, LocalOutput>): string => {
+      const snap = getTabById(tabId)
       const n = snap.canvas.nodes.find((x) => x.id === nodeId)
       
       // Mute check: muted nodes always return empty
@@ -110,12 +124,12 @@ export function useNodeRunner(
         return n.data.output ?? ''
       return ''
     },
-    [appDataRef],
+    [getTabById],
   )
 
   const getConductorOutput = useCallback(
-    (nodeId: string, localOutputs?: Map<string, LocalOutput>): Record<string, string> | null => {
-      const snap = getActiveTab(appDataRef.current)
+    (tabId: string, nodeId: string, localOutputs?: Map<string, LocalOutput>): Record<string, string> | null => {
+      const snap = getTabById(tabId)
       const n = snap.canvas.nodes.find((x) => x.id === nodeId)
       
       // Mute check: muted nodes always return empty
@@ -128,12 +142,12 @@ export function useNodeRunner(
       if (n.type === 'code-search-conductor') return n.data.output
       return null
     },
-    [appDataRef],
+    [getTabById],
   )
 
   const getCodeSearchOutput = useCallback(
-    (nodeId: string, localOutputs?: Map<string, LocalOutput>): CodeSearchOutput | null => {
-      const snap = getActiveTab(appDataRef.current)
+    (tabId: string, nodeId: string, localOutputs?: Map<string, LocalOutput>): CodeSearchOutput | null => {
+      const snap = getTabById(tabId)
       const n = snap.canvas.nodes.find((x) => x.id === nodeId)
       
       // Mute check: muted nodes always return empty
@@ -146,12 +160,12 @@ export function useNodeRunner(
       if (n.type === 'code-search' || n.type === 'manual-import') return n.data.output
       return null
     },
-    [appDataRef],
+    [getTabById],
   )
 
   const getCodeSearchRepoPath = useCallback(
-    (nodeId: string, localOutputs?: Map<string, LocalOutput>): string => {
-      const snap = getActiveTab(appDataRef.current)
+    (tabId: string, nodeId: string, localOutputs?: Map<string, LocalOutput>): string => {
+      const snap = getTabById(tabId)
       const n = snap.canvas.nodes.find((x) => x.id === nodeId)
       
       // Mute check: muted nodes always return empty
@@ -164,12 +178,12 @@ export function useNodeRunner(
       if (n.type === 'code-search' || n.type === 'manual-import') return n.data.repoPath
       return ''
     },
-    [appDataRef],
+    [getTabById],
   )
 
   const getContextSources = useCallback(
-    (nodeId: string, localOutputs?: Map<string, LocalOutput>): ContextSource[] | null => {
-      const snap = getActiveTab(appDataRef.current)
+    (tabId: string, nodeId: string, localOutputs?: Map<string, LocalOutput>): ContextSource[] | null => {
+      const snap = getTabById(tabId)
       const n = snap.canvas.nodes.find((x) => x.id === nodeId)
 
       // Mute check: muted nodes contribute no structured context
@@ -182,21 +196,21 @@ export function useNodeRunner(
       if (n.type === 'context-converter') return n.data.contextSources ?? null
       return null
     },
-    [appDataRef],
+    [getTabById],
   )
 
   const concatPredStrings = useCallback(
-    (preds: AppNode[], localOutputs?: Map<string, LocalOutput>) => {
+    (tabId: string, preds: AppNode[], localOutputs?: Map<string, LocalOutput>) => {
       const parts: string[] = []
       for (const p of preds) {
         if (p.type === 'context-converter') {
-          const s = getStringOutput(p.id, localOutputs).trim()
+          const s = getStringOutput(tabId, p.id, localOutputs).trim()
           if (s) parts.push(s)
         }
       }
       for (const p of preds) {
         if (p.type === 'instruction' || p.type === 'llm' || p.type === 'archive') {
-          const s = getStringOutput(p.id, localOutputs).trim()
+          const s = getStringOutput(tabId, p.id, localOutputs).trim()
           if (s) parts.push(s)
         }
       }
@@ -207,16 +221,18 @@ export function useNodeRunner(
 
   const runNode = useCallback(
     async (
+      tabId: string,
       nodeId: string,
       mode: RunMode = 'single',
       localOutputs?: Map<string, LocalOutput>,
       signal?: AbortSignal,
     ): Promise<LocalOutput | null> => {
-      const existing = inFlightRuns.current.get(nodeId)
+      const runKey = makeRunKey(tabId, nodeId)
+      const existing = inFlightRuns.current.get(runKey)
       if (existing) return existing
 
       const promise = (async () => {
-        const snapshot = getActiveTab(appDataRef.current)
+        const snapshot = getTabById(tabId)
         const node = snapshot.canvas.nodes.find((n) => n.id === nodeId)
         if (!node) throw new Error(`Node not found: ${nodeId}`)
         if (mode === 'single' && node.data.locked) throw new Error('Node is locked')
@@ -229,14 +245,14 @@ export function useNodeRunner(
           }
         }
 
-        patchNodeById(nodeId, (n) => ({ ...n, data: { ...n.data, status: 'running', error: null } } as AppNode))
+        patchNodeByIdInTab(tabId, nodeId, (n) => ({ ...n, data: { ...n.data, status: 'running', error: null } } as AppNode))
 
         try {
           // Mute check: if node is muted, return empty output without executing
           if (node.data.muted) {
             const emptyOutput = getEmptyNodeOutput(node.type)
 
-            patchNodeById(nodeId, (n) => ({
+            patchNodeByIdInTab(tabId, nodeId, (n) => ({
               ...n,
               data: {
                 ...n.data,
@@ -273,7 +289,7 @@ export function useNodeRunner(
             }
 
             const output = lines.join('\n').trimEnd()
-            patchNodeById(nodeId, (n) => {
+            patchNodeByIdInTab(tabId, nodeId, (n) => {
               if (n.type !== 'archive') return n
               return { ...n, data: { ...n.data, status: 'success', error: null, output } }
             })
@@ -286,7 +302,7 @@ export function useNodeRunner(
             throwIfAborted(signal)
 
             // Get dynamic input from predecessors (like context-converter does)
-            const predecessorText = concatPredStrings(preds, localOutputs).trim()
+            const predecessorText = concatPredStrings(tabId, preds, localOutputs).trim()
 
             // Get user's instruction text (this is the static user-defined content)
             const userInstruction = node.data.text.trim()
@@ -304,7 +320,7 @@ export function useNodeRunner(
               // If user provides text via prompt, treat it as user instruction
               const finalText = prompted.trim()
 
-              patchNodeById(nodeId, (n) => {
+              patchNodeByIdInTab(tabId, nodeId, (n) => {
                 if (n.type !== 'instruction') return n
                 return {
                   ...n,
@@ -334,7 +350,7 @@ export function useNodeRunner(
             }
             const finalText = parts.join('\n\n')
 
-            patchNodeById(nodeId, (n) => {
+            patchNodeByIdInTab(tabId, nodeId, (n) => {
               if (n.type !== 'instruction') return n
               return {
                 ...n,
@@ -357,7 +373,7 @@ export function useNodeRunner(
             throwIfAborted(signal)
 
             // Get predecessor text (context from upstream nodes)
-            const predecessorText = concatPredStrings(preds, localOutputs).trim()
+            const predecessorText = concatPredStrings(tabId, preds, localOutputs).trim()
 
             // Get user's query (static user-defined content)
             const userQuery = node.data.query.trim()
@@ -415,7 +431,7 @@ export function useNodeRunner(
               signal,
             })
 
-            patchNodeById(nodeId, (n) => {
+            patchNodeByIdInTab(tabId, nodeId, (n) => {
               if (n.type !== 'code-search-conductor') return n
               return {
                 ...n,
@@ -444,7 +460,7 @@ export function useNodeRunner(
             if (conductorPreds.length === 1) {
               // Conductor mode: use conductor-assigned query directly
               const conductorId = conductorPreds[0].id
-              const map = getConductorOutput(conductorId, localOutputs)
+              const map = getConductorOutput(tabId, conductorId, localOutputs)
               if (!map) throw new Error('Conductor has no output.')
               const assigned = map[nodeId]
               if (typeof assigned !== 'string' || !assigned.trim()) {
@@ -453,7 +469,7 @@ export function useNodeRunner(
               finalQuery = assigned.trim()
             } else {
               // Non-conductor mode: combine predecessor input with user query
-              const predecessorText = concatPredStrings(preds, localOutputs).trim()
+              const predecessorText = concatPredStrings(tabId, preds, localOutputs).trim()
               const userQuery = node.data.query.trim()
 
               const hasPredecessors = preds.length > 0 && predecessorText.length > 0
@@ -493,7 +509,7 @@ export function useNodeRunner(
               debugMessages: !!node.data.debugMessages,
               signal,
             })
-            patchNodeById(nodeId, (n) => {
+            patchNodeByIdInTab(tabId, nodeId, (n) => {
               if (n.type !== 'code-search') return n
               return {
                 ...n,
@@ -522,7 +538,7 @@ export function useNodeRunner(
             throwIfAborted(signal)
             const result = await resolveManualImport({ repoPath, items, signal })
 
-            patchNodeById(nodeId, (n) => {
+            patchNodeByIdInTab(tabId, nodeId, (n) => {
               if (n.type !== 'manual-import') return n
               return {
                 ...n,
@@ -552,10 +568,10 @@ export function useNodeRunner(
             const sourcesByKey = new Map<string, ContextSource>()
 
             for (const p of searchPreds) {
-              const out = getCodeSearchOutput(p.id, localOutputs)
+              const out = getCodeSearchOutput(tabId, p.id, localOutputs)
               if (!out) throw new Error('Code-search predecessor has no output.')
               if (Object.keys(out.files ?? {}).length === 0) continue
-              const repoPath = getCodeSearchRepoPath(p.id, localOutputs)
+              const repoPath = getCodeSearchRepoPath(tabId, p.id, localOutputs)
               const key = `${repoPath}\n${p.id}`
               if (!sourcesByKey.has(key)) {
                 sourcesByKey.set(key, { repoPath, sourceNodeId: p.id, explanation: out.explanation, files: out.files })
@@ -563,7 +579,7 @@ export function useNodeRunner(
             }
 
             for (const p of ctxPreds) {
-              const predSources = getContextSources(p.id, localOutputs)
+              const predSources = getContextSources(tabId, p.id, localOutputs)
               if (predSources === null) {
                 throw new Error('Context-converter predecessor has no structured context. Re-run it to enable chaining.')
               }
@@ -620,7 +636,7 @@ export function useNodeRunner(
             }
 
             const text = contexts.join('\n\n---\n\n').trimEnd() + '\n\n---end of code context---\n\n'
-            patchNodeById(nodeId, (n) => {
+            patchNodeByIdInTab(tabId, nodeId, (n) => {
               if (n.type !== 'context-converter') return n
               return {
                 ...n,
@@ -644,7 +660,7 @@ export function useNodeRunner(
           throwIfAborted(signal)
 
           // Get predecessor text (context from upstream nodes)
-          const predecessorText = concatPredStrings(preds, localOutputs).trim()
+          const predecessorText = concatPredStrings(tabId, preds, localOutputs).trim()
 
           // Get user's query (static user-defined content)
           const userQuery = node.data.query.trim()
@@ -678,7 +694,7 @@ export function useNodeRunner(
               signal,
             })
 
-            patchNodeById(nodeId, (n) => {
+            patchNodeByIdInTab(tabId, nodeId, (n) => {
               if (n.type !== 'llm') return n
               return {
                 ...n,
@@ -722,7 +738,7 @@ export function useNodeRunner(
             signal,
           })
 
-          patchNodeById(nodeId, (n) => {
+          patchNodeByIdInTab(tabId, nodeId, (n) => {
             if (n.type !== 'llm') return n
             return {
               ...n,
@@ -740,21 +756,21 @@ export function useNodeRunner(
           return out
         } catch (err: unknown) {
           if (mode === 'chain' && (signal?.aborted || isAbortError(err) || err instanceof ChainCancelledError)) {
-            patchNodeById(nodeId, (n) => ({ ...n, data: { ...n.data, status: 'idle', error: null } } as AppNode))
+            patchNodeByIdInTab(tabId, nodeId, (n) => ({ ...n, data: { ...n.data, status: 'idle', error: null } } as AppNode))
             throw new ChainCancelledError()
           }
           const message = err instanceof Error ? err.message : String(err)
-          patchNodeById(nodeId, (n) => ({ ...n, data: { ...n.data, status: 'error', error: message } } as AppNode))
+          patchNodeByIdInTab(tabId, nodeId, (n) => ({ ...n, data: { ...n.data, status: 'error', error: message } } as AppNode))
           throw err
         }
       })().finally(() => {
-        inFlightRuns.current.delete(nodeId)
+        inFlightRuns.current.delete(runKey)
       })
 
-      inFlightRuns.current.set(nodeId, promise)
+      inFlightRuns.current.set(runKey, promise)
       return promise
     },
-    [appDataRef, patchNodeById, concatPredStrings, getConductorOutput, getCodeSearchOutput, getCodeSearchRepoPath],
+    [getTabById, patchNodeByIdInTab, concatPredStrings, getConductorOutput, getCodeSearchOutput, getCodeSearchRepoPath, getContextSources],
   )
 
   return {

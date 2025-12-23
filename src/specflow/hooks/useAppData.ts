@@ -179,6 +179,14 @@ export function useAppData() {
     })
   }, [])
 
+  const updateCanvasById = useCallback((tabId: string, patch: (tab: Tab) => Tab) => {
+    setAppData((d) => {
+      if (!d) throw new Error('App data not loaded')
+      const nextTabs = d.tabs.map((t) => (t.id === tabId ? patch(t) : t))
+      return { ...d, tabs: nextTabs }
+    })
+  }, [])
+
   const updateActiveViewport = useCallback((viewport: Viewport) => {
     setAppData((d) => {
       if (!d) throw new Error('App data not loaded')
@@ -604,6 +612,19 @@ export function useAppData() {
     [updateActiveCanvas],
   )
 
+  const patchNodeByIdInTab = useCallback(
+    (tabId: string, nodeId: string, patch: (n: AppNode) => AppNode) => {
+      updateCanvasById(tabId, (t) => ({
+        ...t,
+        canvas: {
+          ...t.canvas,
+          nodes: updateNode(t.canvas.nodes, nodeId, patch),
+        },
+      }))
+    },
+    [updateCanvasById],
+  )
+
   const loadCanvas = useCallback(async (filePath: string) => {
     const loaded = await loadCanvasFile(filePath)
 
@@ -741,6 +762,7 @@ export function useAppData() {
     closeTab,
     deleteSelectedNodes,
     updateActiveCanvas,
+    updateCanvasById,
     updateActiveViewport,
     onNodesChange,
     onEdgesChange,
@@ -748,6 +770,7 @@ export function useAppData() {
     addNode,
     patchSelectedNode,
     patchNodeById,
+    patchNodeByIdInTab,
     archiveSelectedNodes,
     unarchiveNode,
     loadCanvas,

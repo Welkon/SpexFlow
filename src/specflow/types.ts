@@ -96,6 +96,7 @@ export type ChainRunStatus = 'running' | 'completed' | 'cancelled' | 'error'
 
 export type ChainRun = {
   id: string
+  tabId: string
   startedAt: string
   fromNodeId: string
   fromNodeTitle: string
