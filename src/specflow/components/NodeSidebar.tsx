@@ -77,11 +77,11 @@ export function NodeSidebar({
 
   // @@@expand trigger - consume one-shot expand requests so they don't reopen on reselect
   useEffect(() => {
+    setLocalExpand(null)
     if (!selectedNode) return
     setIsEditingName(false)
     setNameDraft((selectedNode.data.customName ?? '').trim())
     setSelectedMember(null)
-    setLocalExpand(null)
   }, [selectedNode?.id])
 
   const expandedMatch = !!selectedNode && !!expandedField && expandedField.nodeId === selectedNode.id
