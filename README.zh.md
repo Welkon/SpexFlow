@@ -186,6 +186,10 @@ manual-import → context-converter → llm
 - **添加节点**：Code Search / Manual Import / Search Conductor / Context / Instruction / LLM
 - **Reset Canvas**：清空所有未锁定节点的输出（有节点 running 时不可用）
 
+### 画布
+
+- 双击节点打开主编辑器（query/text）；Manual Import 会直接打开文件选择器。
+
 ### 侧边栏（单选）
 
 - 展示该节点的配置项（不同节点不同字段）

@@ -172,6 +172,10 @@ The app enforces a connection matrix (invalid edges are rejected). The current r
 - **Add nodes**: Code Search / Manual Import / Search Conductor / Context / Instruction / LLM
 - **Reset Canvas**: clears outputs of all unlocked nodes (must not have running nodes)
 
+### Canvas
+
+- Double-click a node to open its primary editor (query/text). Manual Import opens the file picker.
+
 ### Sidebar (single selection)
 
 - **Settings** for the selected node (fields vary per node type)
