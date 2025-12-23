@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { TextEditorModal } from './TextEditorModal'
 
 type Props = {
@@ -12,6 +12,7 @@ type Props = {
   doneLabel?: string
   hintSave?: string
   closeTitle?: string
+  openToken?: number | null
 }
 
 export function ExpandableTextarea({
@@ -25,8 +26,14 @@ export function ExpandableTextarea({
   doneLabel,
   hintSave,
   closeTitle,
+  openToken,
 }: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  useEffect(() => {
+    if (openToken === null || openToken === undefined) return
+    setIsModalOpen(true)
+  }, [openToken])
 
   return (
     <>

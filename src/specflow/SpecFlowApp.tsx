@@ -5,7 +5,7 @@ import '@xyflow/react/dist/style.css'
 import { useAppData, useNodeRunner, useChainRunner, useClipboard, useHotkeys } from './hooks'
 import { NodeSidebar, ToolbarButton, MultiSelectInfo, APISettingsModal, SettingsIcon, DropdownMenu, CanvasFilePicker, CanvasSettingsModal, CanvasIcon } from './components'
 import type { APISettings, AppData, Viewport } from './types'
-import type { Dispatch, RefObject, SetStateAction } from 'react'
+import type { Dispatch, RefObject, SetStateAction, MouseEvent as ReactMouseEvent } from 'react'
 import {
   HandIcon,
   SelectIcon,
@@ -29,6 +29,12 @@ import {
   ManualImportNodeView,
   ArchiveNodeView,
 } from './nodes'
+
+type ExpandedNodeField = {
+  nodeId: string
+  field: 'query' | 'text' | 'files'
+  token: number
+}
 
 export function SpecFlowApp() {
   const app = useAppData()
@@ -111,6 +117,8 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
   const [isLoadPickerOpen, setIsLoadPickerOpen] = useState(false)
   const [isCanvasSettingsOpen, setIsCanvasSettingsOpen] = useState(false)
   const [canvasSettingsTabId, setCanvasSettingsTabId] = useState<string | null>(null)
+  const [expandedNodeField, setExpandedNodeField] = useState<ExpandedNodeField | null>(null)
+  const expandedFieldTokenRef = useRef(0)
 
   const language = appData.ui.language
 
@@ -272,6 +280,38 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
     [activeTab.canvas.nodes, onNodesChange, selected],
   )
 
+  const handleNodeDoubleClick = useCallback(
+    (_event: ReactMouseEvent, node: { id: string; type?: string }) => {
+      void _event
+      let field: ExpandedNodeField['field'] | null = null
+      switch (node.type) {
+        case 'code-search':
+        case 'code-search-conductor':
+        case 'llm':
+          field = 'query'
+          break
+        case 'instruction':
+          field = 'text'
+          break
+        case 'manual-import':
+          field = 'files'
+          break
+        default:
+          return
+      }
+      expandedFieldTokenRef.current += 1
+      setExpandedNodeField({ nodeId: node.id, field, token: expandedFieldTokenRef.current })
+    },
+    [setExpandedNodeField],
+  )
+
+  const handleExpandedFieldHandled = useCallback((token: number) => {
+    setExpandedNodeField((prev) => {
+      if (!prev || prev.token !== token) return prev
+      return null
+    })
+  }, [])
+
   return (
     <div className="sfRoot">
       <ChainManager runs={chainRuns} onCancel={cancelChain} />
@@ -423,6 +463,7 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onNodeDoubleClick={handleNodeDoubleClick}
             nodeTypes={nodeTypes}
             panOnDrag={interactionMode === 'hand' || spaceHeld}
             selectionOnDrag={interactionMode === 'select' && !spaceHeld}
@@ -480,6 +521,8 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
             apiSettings={appData.apiSettings}
             language={language}
             canRunFromPreds={canRunFromPreds}
+            expandedField={expandedNodeField}
+            onExpandedFieldHandled={handleExpandedFieldHandled}
           />
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AppNode, APISettings, ArchivedMember } from '../types'
 import { resetNodeRuntime } from '../utils'
 import { ExpandableTextarea } from './ExpandableTextarea'
@@ -35,6 +35,12 @@ type Props = {
   apiSettings: APISettings
   language: Language
   canRunFromPreds: boolean
+  expandedField: {
+    nodeId: string
+    field: 'query' | 'text' | 'files'
+    token: number
+  } | null
+  onExpandedFieldHandled: (token: number) => void
 }
 
 export function NodeSidebar({
@@ -48,6 +54,8 @@ export function NodeSidebar({
   apiSettings,
   language,
   canRunFromPreds,
+  expandedField,
+  onExpandedFieldHandled,
 }: Props) {
   const [isOutputModalOpen, setIsOutputModalOpen] = useState(false)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
@@ -55,6 +63,9 @@ export function NodeSidebar({
   const [isEditingName, setIsEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
   const [selectedMember, setSelectedMember] = useState<ArchivedMember | null>(null)
+  const [localExpand, setLocalExpand] = useState<{ field: 'query' | 'text'; token: number } | null>(null)
+  const manualPickerTokenRef = useRef<number | null>(null)
+  const textExpandTokenRef = useRef<number | null>(null)
 
   const getOutputText = useCallback(() => {
     if (!selectedNode) return ''
@@ -64,12 +75,46 @@ export function NodeSidebar({
     return JSON.stringify(out, null, 2)
   }, [selectedNode])
 
+  // @@@expand trigger - consume one-shot expand requests so they don't reopen on reselect
   useEffect(() => {
     if (!selectedNode) return
     setIsEditingName(false)
     setNameDraft((selectedNode.data.customName ?? '').trim())
     setSelectedMember(null)
+    setLocalExpand(null)
   }, [selectedNode?.id])
+
+  const expandedMatch = !!selectedNode && !!expandedField && expandedField.nodeId === selectedNode.id
+  const expandedToken = expandedMatch ? expandedField.token : null
+  const expandedFieldName = expandedMatch ? expandedField.field : null
+  const manualRepoPathTrimmed =
+    selectedNode?.type === 'manual-import' ? (selectedNode.data.repoPath ?? '').trim() : ''
+  const manualPickerToken =
+    selectedNode?.type === 'manual-import' && expandedFieldName === 'files' ? expandedToken : null
+
+  useEffect(() => {
+    if (!manualPickerToken) return
+    if (manualPickerTokenRef.current === manualPickerToken) return
+    manualPickerTokenRef.current = manualPickerToken
+    if (!manualRepoPathTrimmed) {
+      setShowManualRepoRequired(true)
+      window.alert(t(language, 'manual_import_repo_required'))
+      onExpandedFieldHandled(manualPickerToken)
+      return
+    }
+    setIsPickerOpen(true)
+    onExpandedFieldHandled(manualPickerToken)
+  }, [manualPickerToken, manualRepoPathTrimmed, language, onExpandedFieldHandled])
+
+  useEffect(() => {
+    if (!expandedMatch) return
+    if (expandedFieldName !== 'query' && expandedFieldName !== 'text') return
+    if (!expandedToken) return
+    if (textExpandTokenRef.current === expandedToken) return
+    textExpandTokenRef.current = expandedToken
+    setLocalExpand({ field: expandedFieldName, token: expandedToken })
+    onExpandedFieldHandled(expandedToken)
+  }, [expandedMatch, expandedFieldName, expandedToken, onExpandedFieldHandled])
 
   // Multi-select: don't show sidebar (use MultiSelectInfo instead)
   if (multiSelectCount > 1) return null
@@ -82,8 +127,6 @@ export function NodeSidebar({
     : undefined
   const customName = (selectedNode.data.customName ?? '').trim()
   const customColor = (selectedNode.data.customColor ?? '').trim()
-  const manualRepoPathTrimmed =
-    selectedNode.type === 'manual-import' ? (selectedNode.data.repoPath ?? '').trim() : ''
 
   const outputTitle = t(language, 'sidebar_output')
   const archiveData = selectedNode.type === 'archive' ? selectedNode.data : null
@@ -271,6 +314,7 @@ export function NodeSidebar({
               doneLabel={t(language, 'editor_done')}
               hintSave={t(language, 'editor_hint_save')}
               closeTitle={t(language, 'modal_close_esc')}
+              openToken={localExpand?.field === 'query' ? localExpand.token : null}
             />
 
             <InlineCheckbox
@@ -375,6 +419,7 @@ export function NodeSidebar({
                 )
                 setIsPickerOpen(false)
               }}
+              disabled={isLocked}
             />
           </>
         )}
@@ -411,6 +456,7 @@ export function NodeSidebar({
               doneLabel={t(language, 'editor_done')}
               hintSave={t(language, 'editor_hint_save')}
               closeTitle={t(language, 'modal_close_esc')}
+              openToken={localExpand?.field === 'query' ? localExpand.token : null}
             />
           </>
         )}
@@ -446,6 +492,7 @@ export function NodeSidebar({
             doneLabel={t(language, 'editor_done')}
             hintSave={t(language, 'editor_hint_save')}
             closeTitle={t(language, 'modal_close_esc')}
+            openToken={localExpand?.field === 'text' ? localExpand.token : null}
           />
         )}
 
@@ -498,6 +545,7 @@ export function NodeSidebar({
               doneLabel={t(language, 'editor_done')}
               hintSave={t(language, 'editor_hint_save')}
               closeTitle={t(language, 'modal_close_esc')}
+              openToken={localExpand?.field === 'query' ? localExpand.token : null}
             />
           </>
         )}

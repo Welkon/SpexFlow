@@ -17,6 +17,7 @@ type Props = {
   initialItems: ManualImportItem[]
   onConfirm: (items: ManualImportItem[]) => void
   onClose: () => void
+  disabled?: boolean
 }
 
 function posixDirname(relPath: string) {
@@ -42,7 +43,7 @@ function joinPosix(a: string, b: string) {
   return `${left}/${right}`
 }
 
-export function RepoPickerModal({ isOpen, repoPath, language, initialItems, onConfirm, onClose }: Props) {
+export function RepoPickerModal({ isOpen, repoPath, language, initialItems, onConfirm, onClose, disabled }: Props) {
   const [dir, setDir] = useState('')
   const [entries, setEntries] = useState<DirEntry[]>([])
   const [trustedExtensions, setTrustedExtensions] = useState<string[]>([])
@@ -115,6 +116,7 @@ export function RepoPickerModal({ isOpen, repoPath, language, initialItems, onCo
   if (!isOpen) return null
 
   function toggleItem(item: ManualImportItem) {
+    if (disabled) return
     setSelected((prev) => {
       const next = { ...prev }
       if (next[item.relPath]) {
@@ -214,6 +216,7 @@ export function RepoPickerModal({ isOpen, repoPath, language, initialItems, onCo
                     <input
                       type="checkbox"
                       checked={checked}
+                      disabled={disabled}
                       onChange={() => toggleItem({ kind: e.kind, relPath: e.relPath })}
                     />
                     <button
@@ -272,6 +275,7 @@ export function RepoPickerModal({ isOpen, repoPath, language, initialItems, onCo
                     className="sfRemoveBtn"
                     onClick={() => toggleItem(item)}
                     title={t(language, 'manual_import_remove')}
+                    disabled={disabled}
                   >
                     ×
                   </button>
@@ -289,7 +293,7 @@ export function RepoPickerModal({ isOpen, repoPath, language, initialItems, onCo
           <button
             className="sfSaveBtn"
             onClick={() => onConfirm(selectedItems)}
-            disabled={selectedItems.length === 0}
+            disabled={disabled || selectedItems.length === 0}
           >
             {t(language, 'manual_import_done')}
           </button>
