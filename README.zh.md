@@ -24,6 +24,10 @@ SpexFlow 是一个基于 React Flow 的可视化 context/spec 工作流工具。
 
 <img width="2758" height="1690" alt="image" src="https://github.com/user-attachments/assets/eebb0f6f-9c56-4258-ba2c-f3ab18058e0d" />
 
+**规格面板**：管理规格运行并收集输出：
+
+![Spec dashboard](docs/images/spec-dashboard.png)
+
 ## 你能用它做什么
 
 SpexFlow 用来加载本地代码仓库，并用一个小型「节点工作流」跑通：
@@ -91,6 +95,13 @@ instruction → code-search → context-converter → llm
 
 - **Locked**：不可拖拽；Chain 不会 reset 它；适合"稳定的缓存 context"。
 - **Muted**：直接产出空输出（不发 API）；适合临时禁用一个分支。
+
+### Spec Dashboard
+
+- 规格独立于画布，只通过节点 ID 关联输入与输出。
+- 运行规格会把内容注入输入节点，然后从该节点开始 chain run。
+- 规格会从指定输出节点收集结果，并保存在运行历史里。
+- 把规格 **标为模板** 后可快速新建同输入/输出映射的规格。
 
 ## 节点类型
 

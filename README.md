@@ -24,6 +24,10 @@ It's optimized for **"finish one well-defined feature in one shot"** rather than
 
 <img width="2758" height="1690" alt="image" src="https://github.com/user-attachments/assets/eebb0f6f-9c56-4258-ba2c-f3ab18058e0d" />
 
+**Spec dashboard** for managing spec runs and capturing outputs:
+
+![Spec dashboard](docs/images/spec-dashboard.png)
+
 ## What You Build With It
 
 SpexFlow loads a local code repo and lets you run a small node-based workflow:
@@ -91,6 +95,13 @@ Then copy the LLM output and paste it into your coding agent.
 
 - **Locked**: node cannot be dragged and won't be reset by Chain; useful for "stable cached context".
 - **Muted**: node returns empty output immediately (no API calls); useful for temporarily disabling branches.
+
+### Spec Dashboard
+
+- Specs live outside the canvas and reference existing nodes by ID (input + outputs).
+- Running a spec injects its content into the input node, then chain-runs from there.
+- Outputs are collected from the selected nodes and stored in per-spec run history.
+- Star a spec as a **template** to create new specs with the same input/output mapping.
 
 ## Node Types
 
