@@ -1785,6 +1785,19 @@
   color: #333;
 }
 
+.sfSpecNameBtn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sfSpecNameBtn:hover {
+  text-decoration: underline;
+}
+
 .sfSpecTemplateTag {
   display: inline-flex;
   align-items: center;

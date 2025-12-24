@@ -226,7 +226,9 @@ export function SpecDashboard({
                   <tr key={spec.id}>
                     <td>
                       <div className="sfSpecName">
-                        {spec.name}
+                        <button className="sfSpecNameBtn" onClick={() => handleEditSpec(spec)}>
+                          {spec.name}
+                        </button>
                         {spec.isTemplate ? (
                           <span className="sfSpecTemplateTag">{t(language, 'spec_template_tag')}</span>
                         ) : null}
