@@ -162,6 +162,7 @@ export type Spec = {
   content: string
   inputNodeId: string
   outputs: SpecOutputMapping[]
+  isTemplate?: boolean
   status: SpecStatus
   runHistory: SpecRunResult[]
   createdAt: string

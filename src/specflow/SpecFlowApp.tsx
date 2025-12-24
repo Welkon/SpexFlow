@@ -237,6 +237,7 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
       const newSpec: Spec = {
         id: uid('spec'),
         ...data,
+        isTemplate: false,
         status: 'ready',
         runHistory: [],
         createdAt: now,

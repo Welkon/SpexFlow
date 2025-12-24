@@ -7,6 +7,7 @@ type SpecEditorModalProps = {
   isOpen: boolean
   spec: Spec | null
   nodes: AppNode[]
+  initialData?: { name: string; content: string; inputNodeId: string; outputs: SpecOutputMapping[] } | null
   onSave: (data: { name: string; content: string; inputNodeId: string; outputs: SpecOutputMapping[] }) => void
   onClose: () => void
   language: Language
@@ -30,6 +31,7 @@ export function SpecEditorModal({
   isOpen,
   spec,
   nodes,
+  initialData,
   onSave,
   onClose,
   language,
@@ -41,11 +43,11 @@ export function SpecEditorModal({
 
   useEffect(() => {
     if (!isOpen) return
-    setName(spec?.name ?? '')
-    setContent(spec?.content ?? '')
-    setInputNodeId(spec?.inputNodeId ?? '')
-    setOutputs(spec?.outputs ?? [])
-  }, [isOpen, spec])
+    setName(spec?.name ?? initialData?.name ?? '')
+    setContent(spec?.content ?? initialData?.content ?? '')
+    setInputNodeId(spec?.inputNodeId ?? initialData?.inputNodeId ?? '')
+    setOutputs(spec?.outputs ?? initialData?.outputs ?? [])
+  }, [isOpen, spec, initialData])
 
   useEffect(() => {
     if (!isOpen) return

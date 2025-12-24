@@ -7,6 +7,7 @@ import { SpecHistoryModal } from './SpecHistoryModal'
 import { SpecOutputModal } from './SpecOutputModal'
 import { ConfirmModal } from './ConfirmModal'
 import { RunProgressBar, getChainRunProgress, getChainRunStatusClass } from './RunProgressBar'
+import { DropdownMenu } from './DropdownMenu'
 
 type SpecDashboardProps = {
   specs: Spec[]
@@ -20,6 +21,13 @@ type SpecDashboardProps = {
   runningSpecId: string | null
   onClose: () => void
   language: Language
+}
+
+type SpecDraft = {
+  name: string
+  content: string
+  inputNodeId: string
+  outputs: SpecOutputMapping[]
 }
 
 function formatNodeName(node: AppNode | undefined) {
@@ -90,6 +98,7 @@ export function SpecDashboard({
 }: SpecDashboardProps) {
   const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [editingSpec, setEditingSpec] = useState<Spec | null>(null)
+  const [draftData, setDraftData] = useState<SpecDraft | null>(null)
   const [historySpec, setHistorySpec] = useState<Spec | null>(null)
   const [outputResult, setOutputResult] = useState<{
     result: SpecRunResult
@@ -101,14 +110,28 @@ export function SpecDashboard({
 
   const namedNodes = useMemo(() => nodes.filter((n) => n.data.customName?.trim()), [nodes])
   const noNamedNodes = namedNodes.length === 0
+  const templates = useMemo(() => specs.filter((spec) => spec.isTemplate), [specs])
 
   function handleNewSpec() {
     setEditingSpec(null)
+    setDraftData(null)
+    setIsEditorOpen(true)
+  }
+
+  function handleNewFromTemplate(template: Spec) {
+    setEditingSpec(null)
+    setDraftData({
+      name: template.name,
+      content: '',
+      inputNodeId: template.inputNodeId,
+      outputs: template.outputs.map((o) => ({ ...o })),
+    })
     setIsEditorOpen(true)
   }
 
   function handleEditSpec(spec: Spec) {
     setEditingSpec(spec)
+    setDraftData(null)
     setIsEditorOpen(true)
   }
 
@@ -120,6 +143,7 @@ export function SpecDashboard({
     }
     setIsEditorOpen(false)
     setEditingSpec(null)
+    setDraftData(null)
   }
 
   function handleHistory(spec: Spec) {
@@ -139,14 +163,27 @@ export function SpecDashboard({
     setDeleteSpec(spec)
   }
 
+  const newSpecItems = [
+    { label: t(language, 'spec_new_from_scratch'), onClick: handleNewSpec },
+    ...templates.map((template) => ({
+      label: template.name,
+      onClick: () => handleNewFromTemplate(template),
+    })),
+  ]
+
   return (
     <div className="sfSpecDashboard">
       <div className="sfSpecDashboardHeader">
         <div className="sfSpecDashboardTitle">{t(language, 'spec_dashboard')}</div>
         <div className="sfSpecDashboardActions">
-          <button className="sfSpecActionBtn sfSpecActionBtn--primary" onClick={handleNewSpec}>
-            {t(language, 'spec_new')}
-          </button>
+          <DropdownMenu
+            trigger={
+              <button className="sfSpecActionBtn sfSpecActionBtn--primary">
+                {t(language, 'spec_new')}
+              </button>
+            }
+            items={newSpecItems}
+          />
           <button className="sfSpecCloseBtn" onClick={onClose} title={t(language, 'close')}>
             ×
           </button>
@@ -190,6 +227,9 @@ export function SpecDashboard({
                     <td>
                       <div className="sfSpecName">
                         {spec.name}
+                        {spec.isTemplate ? (
+                          <span className="sfSpecTemplateTag">{t(language, 'spec_template_tag')}</span>
+                        ) : null}
                         {missingOutput ? (
                           <span className="sfSpecWarning" title={t(language, 'spec_node_deleted')}>
                             !
@@ -239,6 +279,14 @@ export function SpecDashboard({
                         <button className="sfSpecActionBtn" onClick={() => handleHistory(spec)}>
                           {t(language, 'spec_history')}
                         </button>
+                        <button
+                          className="sfSpecActionBtn"
+                          onClick={() => onSpecUpdate(spec.id, { isTemplate: !spec.isTemplate })}
+                        >
+                          {spec.isTemplate
+                            ? t(language, 'spec_unmark_template')
+                            : t(language, 'spec_mark_template')}
+                        </button>
                         <button className="sfSpecActionBtn sfSpecActionBtn--danger" onClick={() => handleDelete(spec)}>
                           {t(language, 'spec_delete')}
                         </button>
@@ -270,10 +318,12 @@ export function SpecDashboard({
         isOpen={isEditorOpen}
         spec={editingSpec}
         nodes={nodes}
+        initialData={draftData}
         onSave={handleSaveSpec}
         onClose={() => {
           setIsEditorOpen(false)
           setEditingSpec(null)
+          setDraftData(null)
         }}
         language={language}
       />
