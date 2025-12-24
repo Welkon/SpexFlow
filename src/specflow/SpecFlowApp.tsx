@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ReactFlow, Background, MiniMap } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
-import { useAppData, useNodeRunner, useChainRunner, useClipboard, useHotkeys } from './hooks'
-import { NodeSidebar, ToolbarButton, MultiSelectInfo, APISettingsModal, SettingsIcon, DropdownMenu, CanvasFilePicker, CanvasSettingsModal, CanvasIcon } from './components'
-import type { APISettings, AppData, Viewport } from './types'
+import { useAppData, useNodeRunner, useChainRunner, useClipboard, useHotkeys, useSpecRunner } from './hooks'
+import { NodeSidebar, ToolbarButton, MultiSelectInfo, APISettingsModal, SettingsIcon, DropdownMenu, CanvasFilePicker, CanvasSettingsModal, CanvasIcon, SpecDashboard } from './components'
+import type { APISettings, AppData, Spec, Viewport } from './types'
 import type { Dispatch, RefObject, SetStateAction, MouseEvent as ReactMouseEvent } from 'react'
 import {
   HandIcon,
@@ -16,9 +16,10 @@ import {
   InstructionIcon,
   LLMIcon,
   ResetIcon,
+  SpecIcon,
 } from './components/Icons'
 import { ChainManager } from './ChainManager'
-import { canRunFromPredecessors, predecessors, sameIdSet } from './utils'
+import { canRunFromPredecessors, predecessors, sameIdSet, uid } from './utils'
 import { t } from './i18n'
 import {
   CodeSearchConductorNodeView,
@@ -67,6 +68,7 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
     deleteSelectedNodes,
     archiveSelectedNodes,
     unarchiveNode,
+    updateActiveCanvas,
     updateCanvasById,
     updateActiveViewport,
     onNodesChange,
@@ -103,6 +105,14 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
     nodeToLocalOutput,
   )
 
+  const { runningSpecId, runSpec, cancelSpec } = useSpecRunner(
+    appDataRef,
+    activeTab.id,
+    patchNodeByIdInTab,
+    runFrom,
+    updateCanvasById,
+  )
+
   const { copySelectedNodes, pasteClipboard } = useClipboard(
     appDataRef,
     selectedRef,
@@ -119,6 +129,7 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
   const [canvasSettingsTabId, setCanvasSettingsTabId] = useState<string | null>(null)
   const [expandedNodeField, setExpandedNodeField] = useState<ExpandedNodeField | null>(null)
   const expandedFieldTokenRef = useRef(0)
+  const [isSpecDashboardOpen, setIsSpecDashboardOpen] = useState(false)
 
   const language = appData.ui.language
 
@@ -219,6 +230,47 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
       },
     }))
   }, [setAppDataStrict])
+
+  const handleSpecCreate = useCallback(
+    (data: Omit<Spec, 'id' | 'status' | 'runHistory' | 'createdAt' | 'updatedAt'>) => {
+      const now = new Date().toISOString()
+      const newSpec: Spec = {
+        id: uid('spec'),
+        ...data,
+        status: 'ready',
+        runHistory: [],
+        createdAt: now,
+        updatedAt: now,
+      }
+      updateActiveCanvas((tab) => ({
+        ...tab,
+        specs: [...(tab.specs ?? []), newSpec],
+      }))
+    },
+    [updateActiveCanvas],
+  )
+
+  const handleSpecUpdate = useCallback(
+    (id: string, patch: Partial<Spec>) => {
+      updateActiveCanvas((tab) => ({
+        ...tab,
+        specs: (tab.specs ?? []).map((spec) =>
+          spec.id === id ? { ...spec, ...patch, updatedAt: new Date().toISOString() } : spec,
+        ),
+      }))
+    },
+    [updateActiveCanvas],
+  )
+
+  const handleSpecDelete = useCallback(
+    (id: string) => {
+      updateActiveCanvas((tab) => ({
+        ...tab,
+        specs: (tab.specs ?? []).filter((spec) => spec.id !== id),
+      }))
+    },
+    [updateActiveCanvas],
+  )
 
   const nodeTypes = useMemo(
     () => ({
@@ -482,6 +534,13 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
             <div className="sfToolbarSpacer" />
 
             <ToolbarButton
+              icon={<SpecIcon />}
+              label={t(language, 'toolbar_specs')}
+              description={t(language, 'spec_dashboard')}
+              onClick={() => setIsSpecDashboardOpen((prev) => !prev)}
+              isActive={isSpecDashboardOpen}
+            />
+            <ToolbarButton
               icon={<ResetIcon />}
               label={t(language, 'toolbar_reset')}
               description={t(language, 'toolbar_reset_desc')}
@@ -557,6 +616,20 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
             canRunFromPreds={canRunFromPreds}
             expandedField={expandedNodeField}
             onExpandedFieldHandled={handleExpandedFieldHandled}
+          />
+        )}
+
+        {isSpecDashboardOpen && (
+          <SpecDashboard
+            specs={activeTab.specs ?? []}
+            nodes={activeTab.canvas.nodes}
+            onSpecCreate={handleSpecCreate}
+            onSpecUpdate={handleSpecUpdate}
+            onSpecDelete={handleSpecDelete}
+            onSpecRun={(id) => runSpec(id).catch(() => {})}
+            onSpecCancel={cancelSpec}
+            runningSpecId={runningSpecId}
+            language={language}
           />
         )}
       </div>

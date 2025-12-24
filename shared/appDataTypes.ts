@@ -140,3 +140,30 @@ export type AppData<N, E> = {
   apiSettings: APISettings
   ui: UISettings
 }
+
+export type SpecStatus = 'ready' | 'pending' | 'running' | 'finished' | 'error'
+
+export type SpecOutputMapping = {
+  nodeId: string
+  label: string
+}
+
+export type SpecRunResult = {
+  runId: string
+  startedAt: string
+  finishedAt: string | null
+  outputs: Record<string, string>
+  error?: string
+}
+
+export type Spec = {
+  id: string
+  name: string
+  content: string
+  inputNodeId: string
+  outputs: SpecOutputMapping[]
+  status: SpecStatus
+  runHistory: SpecRunResult[]
+  createdAt: string
+  updatedAt: string
+}

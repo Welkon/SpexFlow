@@ -18,6 +18,10 @@ import type {
   LLMProvider,
   CodeSearchProvider,
   NodeStatus,
+  Spec,
+  SpecOutputMapping,
+  SpecRunResult,
+  SpecStatus,
   Tab as TabBase,
   Viewport,
 } from '../../shared/appDataTypes'
@@ -40,6 +44,10 @@ export type {
   LLMProvider,
   CodeSearchProvider,
   NodeStatus,
+  Spec,
+  SpecOutputMapping,
+  SpecRunResult,
+  SpecStatus,
   Viewport,
 }
 
@@ -89,8 +97,10 @@ export type ArchiveNode = Node<ArchiveData, 'archive'>
 export type AppNode = NonArchiveNode | ArchiveNode
 
 export type Canvas = CanvasBase<AppNode, Edge>
-export type Tab = TabBase<AppNode, Edge>
-export type AppData = AppDataBase<AppNode, Edge>
+export type Tab = TabBase<AppNode, Edge> & {
+  specs?: Spec[]
+}
+export type AppData = Omit<AppDataBase<AppNode, Edge>, 'tabs'> & { tabs: Tab[] }
 
 export type ChainRunStatus = 'running' | 'completed' | 'cancelled' | 'error'
 
