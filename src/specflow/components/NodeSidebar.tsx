@@ -30,7 +30,7 @@ type Props = {
   patchSelectedNode: (patch: (n: AppNode) => AppNode) => void
   deleteSelectedNodes: () => void
   runNode: (nodeId: string) => void
-  runFrom: (nodeId: string) => void
+  runFrom: (nodeId: string) => Promise<unknown>
   unarchiveNode: (archiveNodeId: string, memberId: string) => void
   apiSettings: APISettings
   language: Language

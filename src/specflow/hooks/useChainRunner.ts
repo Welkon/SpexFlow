@@ -73,7 +73,7 @@ export function useChainRunner(
       const capturedTabId = snap.activeTabId
       const tabNow = getTabById(capturedTabId)
       const start = tabNow.canvas.nodes.find((n) => n.id === nodeId)
-      if (start?.data.locked) return
+      if (start?.data.locked) return new Map()
 
       const localOutputs = new Map<string, LocalOutput>()
       const tabSnapshot = getTabById(capturedTabId)
@@ -228,6 +228,8 @@ export function useChainRunner(
       window.setTimeout(() => {
         setChainRuns((runs) => runs.filter((r) => r.id !== chainId))
       }, 2500)
+
+      return new Map(localOutputs)
     },
     [appDataRef, getTabById, updateCanvasById, inFlightRuns, runNode, nodeToLocalOutput, markChainCompleted, markChainFailed, updateChainRun],
   )

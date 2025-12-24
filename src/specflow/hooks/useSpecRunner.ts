@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import type { AppData, AppNode, Spec, SpecRunResult, Tab } from '../types'
+import type { LocalOutput } from './useNodeRunner'
 import { resetNodeRuntime, uid, updateNode } from '../utils'
 
 const CONTENT_FIELD: Record<string, 'text' | 'query'> = {
@@ -34,11 +35,18 @@ function getOutputValue(node: AppNode): string {
   throw new Error(`Unsupported output node type: ${node.type}`)
 }
 
+function localOutputToString(output: LocalOutput): string {
+  if (output.kind === 'string') return output.value ?? ''
+  if (output.kind === 'code-search') return JSON.stringify(output.value ?? {}, null, 2)
+  if (output.kind === 'conductor') return JSON.stringify(output.value ?? {}, null, 2)
+  return ''
+}
+
 export function useSpecRunner(
   appDataRef: React.RefObject<AppData>,
   activeTabId: string,
   patchNodeByIdInTab: (tabId: string, nodeId: string, patch: (n: AppNode) => AppNode) => void,
-  runFrom: (nodeId: string) => Promise<void>,
+  runFrom: (nodeId: string) => Promise<Map<string, LocalOutput>>,
   updateTabById: (tabId: string, patch: (tab: Tab) => Tab) => void,
 ) {
   const [runningSpecId, setRunningSpecId] = useState<string | null>(null)
@@ -154,8 +162,9 @@ export function useSpecRunner(
       })
 
       let error: string | undefined
+      let runOutputs: Map<string, LocalOutput> | null = null
       try {
-        await runFrom(inputNode.id)
+        runOutputs = await runFrom(inputNode.id)
       } catch (err) {
         error = String((err as Error)?.message ?? err)
         console.error(err)
@@ -175,7 +184,6 @@ export function useSpecRunner(
       let outputs: Record<string, string> = {}
       let outputError: string | undefined
       try {
-        outputs = {}
         for (const mapping of spec.outputs) {
           const node = tabAfter.canvas.nodes.find((n) => n.id === mapping.nodeId)
           if (!node) {
@@ -184,6 +192,11 @@ export function useSpecRunner(
           }
           if (!OUTPUT_TYPES.has(node.type)) {
             throw new Error(`Unsupported output node type: ${node.type}`)
+          }
+          const local = runOutputs?.get(mapping.nodeId)
+          if (local) {
+            outputs[mapping.label] = localOutputToString(local)
+            continue
           }
           outputs[mapping.label] = getOutputValue(node)
         }
