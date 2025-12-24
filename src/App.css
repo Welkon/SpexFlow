@@ -1714,7 +1714,7 @@
   position: fixed;
   top: 60px;
   right: 0;
-  width: min(620px, 92vw);
+  width: min(94vw, 1400px);
   height: calc(100vh - 60px);
   background: #fff;
   border-left: 1px solid #e0e0e0;
@@ -1731,6 +1731,12 @@
   padding: 16px 20px;
   border-bottom: 1px solid #e0e0e0;
   background: #fff;
+}
+
+.sfSpecDashboardActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .sfSpecDashboardTitle {
@@ -1818,6 +1824,22 @@
 .sfSpecStatus--finished { background: #f5f5f5; color: #616161; }
 .sfSpecStatus--error { background: #ffebee; color: #c62828; }
 
+.sfSpecStatusCell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+}
+
+.sfSpecProgressRow {
+  gap: 6px;
+}
+
+.sfSpecProgressRow .sfChainMgrBar {
+  height: 6px;
+  background: #f0f0f0;
+}
+
 .sfSpecStatus--running::before {
   content: '';
   width: 6px;
@@ -1838,24 +1860,34 @@
   flex-wrap: wrap;
 }
 
-.sfSpecLastResult {
-  max-width: 260px;
+.sfSpecResultButton {
+  max-width: 360px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 12px;
   color: #444;
+  cursor: pointer;
 }
 
 .sfSpecLastResult--error {
   color: #c62828;
 }
 
+.sfSpecResultButton:disabled {
+  cursor: default;
+  color: #999;
+}
+
 .sfSpecActionBtn {
   padding: 4px 8px;
   border: 1px solid #ddd;
-  border-radius: 4px;
-  background: #fff;
+  border-radius: 2px;
+  background: transparent;
   font-size: 11px;
   cursor: pointer;
   color: #555;
@@ -1863,9 +1895,28 @@
 
 .sfSpecActionBtn:hover { background: #f5f5f5; }
 .sfSpecActionBtn:disabled { opacity: 0.5; cursor: not-allowed; }
-.sfSpecActionBtn--primary { background: #1976d2; color: #fff; border-color: #1976d2; }
-.sfSpecActionBtn--primary:hover { background: #1565c0; }
-.sfSpecActionBtn--danger:hover { background: #ffebee; color: #c62828; border-color: #c62828; }
+.sfSpecActionBtn--primary { color: #1976d2; border-color: #1976d2; }
+.sfSpecActionBtn--primary:hover { background: rgba(25, 118, 210, 0.1); }
+.sfSpecActionBtn--danger:hover { background: rgba(198, 40, 40, 0.08); color: #c62828; border-color: #c62828; }
+
+.sfSpecCloseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #ddd;
+  border-radius: 2px;
+  background: transparent;
+  color: #666;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sfSpecCloseBtn:hover {
+  background: #f5f5f5;
+}
 
 .sfSpecEmpty {
   padding: 40px 20px;
@@ -2026,4 +2077,32 @@ summary.sfSpecOutputHeader::-webkit-details-marker {
   max-height: 300px;
   overflow: auto;
   background: #fafafa;
+}
+
+.sfSpecOutputContent.sfMarkdownContent {
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  background: #fff;
+  white-space: normal;
+  padding: 14px;
+  max-height: 300px;
+}
+
+.sfSpecOutputModal {
+  width: 95%;
+  max-width: 1200px;
+  max-height: 90vh;
+}
+
+.sfSpecOutputModal .sfSpecOutputContent {
+  max-height: 60vh;
+}
+
+.sfSpecHeaderMeta {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #777;
 }

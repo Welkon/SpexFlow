@@ -1,5 +1,7 @@
 import { useEffect, useMemo } from 'react'
-import type { SpecRunResult } from '../types'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import type { SpecRunResult, AppNode } from '../types'
 import type { Language } from '../../../shared/appDataTypes'
 import { t } from '../i18n'
 import { CopyButton } from './CopyButton'
@@ -7,6 +9,7 @@ import { CopyButton } from './CopyButton'
 type SpecOutputModalProps = {
   isOpen: boolean
   result: SpecRunResult | null
+  outputTypes?: Record<string, AppNode['type']>
   onClose: () => void
   language: Language
 }
@@ -26,7 +29,7 @@ function formatDuration(startedAt: string, finishedAt: string | null) {
   return `${minutes}m ${remainder}s`
 }
 
-export function SpecOutputModal({ isOpen, result, onClose, language }: SpecOutputModalProps) {
+export function SpecOutputModal({ isOpen, result, outputTypes, onClose, language }: SpecOutputModalProps) {
   useEffect(() => {
     if (!isOpen) return
 
@@ -51,20 +54,20 @@ export function SpecOutputModal({ isOpen, result, onClose, language }: SpecOutpu
 
   return (
     <div className="sfModalBackdrop" onClick={handleBackdropClick}>
-      <div className="sfModalContent">
+      <div className="sfModalContent sfSpecOutputModal">
         <div className="sfModalHeader">
-          <span className="sfModalTitle">{t(language, 'spec_outputs')}</span>
+          <div>
+            <span className="sfModalTitle">{t(language, 'spec_outputs')}</span>
+            <div className="sfSpecHeaderMeta">
+              <span>{t(language, 'spec_run_at')}: {formatTimestamp(result.startedAt)}</span>
+              <span>{t(language, 'spec_duration')}: {formatDuration(result.startedAt, result.finishedAt)}</span>
+            </div>
+          </div>
           <button className="sfModalCloseBtn" onClick={onClose} title={t(language, 'modal_close_esc')}>
             ×
           </button>
         </div>
         <div className="sfSpecEditor">
-          <div className="sfSpecHistoryTime">
-            {t(language, 'spec_run_at')}: {formatTimestamp(result.startedAt)}
-          </div>
-          <div className="sfSpecHistoryDuration">
-            {t(language, 'spec_duration')}: {formatDuration(result.startedAt, result.finishedAt)}
-          </div>
           {result.error && (
             <div className="sfSpecNodeRef sfSpecNodeRef--deleted" style={{ marginTop: 8 }}>
               {result.error}
@@ -86,7 +89,13 @@ export function SpecOutputModal({ isOpen, result, onClose, language }: SpecOutpu
                       titleCopied={t(language, 'sidebar_copied_title')}
                     />
                   </summary>
-                  <div className="sfSpecOutputContent">{content || ''}</div>
+                  {outputTypes?.[label] === 'llm' ? (
+                    <div className="sfSpecOutputContent sfMarkdownContent">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || ''}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <div className="sfSpecOutputContent">{content || ''}</div>
+                  )}
                 </details>
               ))
             )}

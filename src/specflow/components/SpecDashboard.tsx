@@ -1,21 +1,24 @@
 import { useMemo, useState } from 'react'
-import type { AppNode, Spec, SpecRunResult, SpecOutputMapping } from '../types'
+import type { AppNode, ChainRun, Spec, SpecRunResult, SpecOutputMapping, SpecStatus } from '../types'
 import type { Language } from '../../../shared/appDataTypes'
 import { t } from '../i18n'
 import { SpecEditorModal } from './SpecEditorModal'
 import { SpecHistoryModal } from './SpecHistoryModal'
 import { SpecOutputModal } from './SpecOutputModal'
 import { ConfirmModal } from './ConfirmModal'
+import { RunProgressBar, getChainRunProgress, getChainRunStatusClass } from './RunProgressBar'
 
 type SpecDashboardProps = {
   specs: Spec[]
   nodes: AppNode[]
+  chainRuns: ChainRun[]
   onSpecCreate: (spec: Omit<Spec, 'id' | 'status' | 'runHistory' | 'createdAt' | 'updatedAt'>) => void
   onSpecUpdate: (id: string, patch: Partial<Spec>) => void
   onSpecDelete: (id: string) => void
   onSpecRun: (id: string) => void
   onSpecCancel: (id: string) => void
   runningSpecId: string | null
+  onClose: () => void
   language: Language
 }
 
@@ -23,6 +26,12 @@ function formatNodeName(node: AppNode | undefined) {
   if (!node) return ''
   const custom = node.data.customName?.trim()
   return custom || node.data.title || node.id
+}
+
+function getNodeTextColor(node: AppNode | undefined) {
+  const raw = node?.data.customColor?.trim() ?? ''
+  if (!raw) return undefined
+  return /^#([0-9a-fA-F]{6})$/.test(raw) ? raw : undefined
 }
 
 function getStatusLabel(language: Language, status: Spec['status']) {
@@ -38,6 +47,19 @@ function getStatusLabel(language: Language, status: Spec['status']) {
     case 'error':
       return t(language, 'spec_status_error')
   }
+}
+
+function getSpecStatusProgress(status: SpecStatus) {
+  if (status === 'finished') {
+    return { pct: 100, statusClass: getChainRunStatusClass('completed') }
+  }
+  if (status === 'error') {
+    return { pct: 100, statusClass: getChainRunStatusClass('error') }
+  }
+  if (status === 'pending' || status === 'running') {
+    return { pct: 0, statusClass: getChainRunStatusClass('running') }
+  }
+  return { pct: 0, statusClass: getChainRunStatusClass('cancelled') }
 }
 
 function buildLastRunSummary(result: SpecRunResult | undefined, emptyRunText: string, emptyOutputsText: string) {
@@ -56,18 +78,23 @@ function buildLastRunSummary(result: SpecRunResult | undefined, emptyRunText: st
 export function SpecDashboard({
   specs,
   nodes,
+  chainRuns,
   onSpecCreate,
   onSpecUpdate,
   onSpecDelete,
   onSpecRun,
   onSpecCancel,
   runningSpecId,
+  onClose,
   language,
 }: SpecDashboardProps) {
   const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [editingSpec, setEditingSpec] = useState<Spec | null>(null)
   const [historySpec, setHistorySpec] = useState<Spec | null>(null)
-  const [outputResult, setOutputResult] = useState<SpecRunResult | null>(null)
+  const [outputResult, setOutputResult] = useState<{
+    result: SpecRunResult
+    outputTypes: Record<string, AppNode['type']>
+  } | null>(null)
   const [deleteSpec, setDeleteSpec] = useState<Spec | null>(null)
 
   const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes])
@@ -99,6 +126,15 @@ export function SpecDashboard({
     setHistorySpec(spec)
   }
 
+  function handleResultExpand(spec: Spec, result: SpecRunResult) {
+    const outputTypes: Record<string, AppNode['type']> = {}
+    for (const mapping of spec.outputs) {
+      const node = nodeById.get(mapping.nodeId)
+      if (node) outputTypes[mapping.label] = node.type
+    }
+    setOutputResult({ result, outputTypes })
+  }
+
   function handleDelete(spec: Spec) {
     setDeleteSpec(spec)
   }
@@ -107,9 +143,14 @@ export function SpecDashboard({
     <div className="sfSpecDashboard">
       <div className="sfSpecDashboardHeader">
         <div className="sfSpecDashboardTitle">{t(language, 'spec_dashboard')}</div>
-        <button className="sfSpecActionBtn sfSpecActionBtn--primary" onClick={handleNewSpec}>
-          {t(language, 'spec_new')}
-        </button>
+        <div className="sfSpecDashboardActions">
+          <button className="sfSpecActionBtn sfSpecActionBtn--primary" onClick={handleNewSpec}>
+            {t(language, 'spec_new')}
+          </button>
+          <button className="sfSpecCloseBtn" onClick={onClose} title={t(language, 'close')}>
+            ×
+          </button>
+        </div>
       </div>
       <div className="sfSpecDashboardBody">
         {specs.length === 0 ? (
@@ -138,6 +179,11 @@ export function SpecDashboard({
                   t(language, 'spec_no_history'),
                   t(language, 'spec_no_outputs'),
                 )
+                const canExpand = !!lastRun
+                const activeRun = chainRuns.find((run) => run.fromNodeId === spec.inputNodeId)
+                const progress = activeRun
+                  ? getChainRunProgress(activeRun)
+                  : { ...getSpecStatusProgress(spec.status), rightText: undefined }
 
                 return (
                   <tr key={spec.id}>
@@ -157,11 +203,21 @@ export function SpecDashboard({
                           {t(language, 'spec_node_deleted')}
                         </div>
                       ) : (
-                        <div className="sfSpecNodeRef">{formatNodeName(inputNode)}</div>
+                        <div className="sfSpecNodeRef" style={{ color: getNodeTextColor(inputNode) }}>
+                          {formatNodeName(inputNode)}
+                        </div>
                       )}
                     </td>
                     <td>
-                      <span className={`sfSpecStatus sfSpecStatus--${spec.status}`}>{statusLabel}</span>
+                      <div className="sfSpecStatusCell">
+                        <span className={`sfSpecStatus sfSpecStatus--${spec.status}`}>{statusLabel}</span>
+                        <RunProgressBar
+                          pct={progress.pct}
+                          statusClass={progress.statusClass}
+                          rightText={progress.rightText}
+                          className="sfSpecProgressRow"
+                        />
+                      </div>
                     </td>
                     <td>
                       <div className="sfSpecActions">
@@ -189,12 +245,17 @@ export function SpecDashboard({
                       </div>
                     </td>
                     <td>
-                      <div
-                        className={`sfSpecLastResult ${summary.hasError ? 'sfSpecLastResult--error' : ''}`}
+                      <button
+                        className={`sfSpecResultButton ${summary.hasError ? 'sfSpecLastResult--error' : ''}`}
                         title={summary.text}
+                        onClick={() => {
+                          if (!lastRun) return
+                          handleResultExpand(spec, lastRun)
+                        }}
+                        disabled={!canExpand}
                       >
                         {summary.text}
-                      </div>
+                      </button>
                     </td>
                   </tr>
                 )
@@ -223,8 +284,8 @@ export function SpecDashboard({
           spec={historySpec}
           onClose={() => setHistorySpec(null)}
           onSelectRun={(result) => {
+            handleResultExpand(historySpec, result)
             setHistorySpec(null)
-            setOutputResult(result)
           }}
           language={language}
         />
@@ -232,7 +293,8 @@ export function SpecDashboard({
 
       <SpecOutputModal
         isOpen={!!outputResult}
-        result={outputResult}
+        result={outputResult?.result ?? null}
+        outputTypes={outputResult?.outputTypes}
         onClose={() => setOutputResult(null)}
         language={language}
       />

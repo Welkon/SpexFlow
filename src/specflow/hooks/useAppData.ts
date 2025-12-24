@@ -32,6 +32,7 @@ function buildCanvasFile(tab: Tab): SavedCanvasFile {
     name: tab.name,
     savedAt: new Date().toISOString(),
     settings: tab.canvasSettings ? { ...tab.canvasSettings } : undefined,
+    specs: tab.specs ? deepClone(tab.specs) : undefined,
     canvas: {
       nodes: tab.canvas.nodes,
       edges: tab.canvas.edges,
@@ -90,6 +91,7 @@ export function useAppData() {
           hydratedTabs.push({
             ...tab,
             canvasSettings: loaded.settings ?? tab.canvasSettings,
+            specs: loaded.specs ?? tab.specs,
             canvas: {
               ...tab.canvas,
               nodes: loaded.canvas.nodes,
@@ -649,6 +651,7 @@ export function useAppData() {
       createdAt: now,
       savedFilePath: filePath,
       canvasSettings: loaded.settings ?? undefined,
+      specs: loaded.specs ?? undefined,
       canvas: {
         nodes: loaded.canvas.nodes,
         edges: loaded.canvas.edges,
@@ -710,6 +713,7 @@ export function useAppData() {
       createdAt: now,
       savedFilePath: targetPath,
       canvasSettings: tab.canvasSettings ? deepClone(tab.canvasSettings) : undefined,
+      specs: tab.specs ? deepClone(tab.specs) : undefined,
       canvas,
     }
 

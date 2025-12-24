@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { ChainRun } from './types'
+import { RunProgressBar, getChainRunProgress } from './components/RunProgressBar'
 
 export function ChainManager(props: {
   runs: ChainRun[]
@@ -29,18 +30,8 @@ export function ChainManager(props: {
       {expanded ? (
         <div className="sfChainMgrBody">
           {props.runs.map((r) => {
-            const total = r.nodeIds.length
-            const done = r.completedNodeIds.length
-            const pct = total > 0 ? Math.round((done / total) * 100) : 0
             const tabName = props.tabNameById?.get(r.tabId)
-            const statusClass =
-              r.status === 'completed'
-                ? 'sfChainMgrStatusDone'
-                : r.status === 'cancelled'
-                  ? 'sfChainMgrStatusCancelled'
-                  : r.status === 'error'
-                    ? 'sfChainMgrStatusError'
-                    : 'sfChainMgrStatusRunning'
+            const progress = getChainRunProgress(r)
 
             return (
               <div key={r.id} className="sfChainMgrItem">
@@ -48,17 +39,11 @@ export function ChainManager(props: {
                   Chain from “{r.fromNodeTitle || r.fromNodeId}”
                 </div>
                 {tabName ? <div className="sfChainMgrItemSub">Tab: {tabName}</div> : null}
-                <div className="sfChainMgrProgressRow">
-                  <div className="sfChainMgrBar">
-                    <div
-                      className={`sfChainMgrBarFill ${statusClass}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <div className="sfChainMgrProgressText">
-                    {done}/{total} nodes
-                  </div>
-                </div>
+                <RunProgressBar
+                  pct={progress.pct}
+                  statusClass={progress.statusClass}
+                  rightText={progress.rightText}
+                />
                 <div className="sfChainMgrActions">
                   {r.status === 'running' ? (
                     <button

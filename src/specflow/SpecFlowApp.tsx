@@ -623,12 +623,14 @@ function SpecFlowAppLoaded(props: ReturnType<typeof useAppData> & { appData: App
           <SpecDashboard
             specs={activeTab.specs ?? []}
             nodes={activeTab.canvas.nodes}
+            chainRuns={chainRuns.filter((run) => run.tabId === activeTab.id)}
             onSpecCreate={handleSpecCreate}
             onSpecUpdate={handleSpecUpdate}
             onSpecDelete={handleSpecDelete}
             onSpecRun={(id) => runSpec(id).catch(() => {})}
             onSpecCancel={cancelSpec}
             runningSpecId={runningSpecId}
+            onClose={() => setIsSpecDashboardOpen(false)}
             language={language}
           />
         )}

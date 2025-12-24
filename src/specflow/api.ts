@@ -1,5 +1,5 @@
 import type { Edge } from '@xyflow/react'
-import type { AppData, AppNode, CodeSearchOutput } from './types'
+import type { AppData, AppNode, CodeSearchOutput, Spec } from './types'
 import type { ManualImportItem } from '../../shared/appDataTypes'
 
 export type SavedCanvasFile = {
@@ -8,6 +8,7 @@ export type SavedCanvasFile = {
   name: string
   savedAt: string
   settings?: { defaultRepoPath?: string }
+  specs?: Spec[]
   canvas: {
     nodes: AppNode[]
     edges: Edge[]
