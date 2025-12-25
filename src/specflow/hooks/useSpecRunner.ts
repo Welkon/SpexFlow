@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import type { AppData, AppNode, Spec, SpecRunResult, Tab } from '../types'
+import type { AppData, AppNode, ChainRunStatus, Spec, SpecRunResult, Tab } from '../types'
 import type { LocalOutput } from './useNodeRunner'
 import { resetNodeRuntime, uid, updateNode } from '../utils'
 
@@ -46,7 +46,10 @@ export function useSpecRunner(
   appDataRef: React.RefObject<AppData>,
   activeTabId: string,
   patchNodeByIdInTab: (tabId: string, nodeId: string, patch: (n: AppNode) => AppNode) => void,
-  runFrom: (nodeId: string) => Promise<Map<string, LocalOutput>>,
+  runFrom: (
+    nodeId: string,
+    opts?: { chainId?: string },
+  ) => Promise<{ chainId: string; outputs: Map<string, LocalOutput>; status: ChainRunStatus }>,
   updateTabById: (tabId: string, patch: (tab: Tab) => Tab) => void,
 ) {
   const [runningSpecId, setRunningSpecId] = useState<string | null>(null)
@@ -100,6 +103,7 @@ export function useSpecRunner(
         updateSpecInTab(tabId, specId, (s) => ({
           ...s,
           status: 'pending',
+          activeChainId: null,
           updatedAt: new Date().toISOString(),
         }))
         return
@@ -110,6 +114,7 @@ export function useSpecRunner(
         updateSpecInTab(tabId, specId, (s) => ({
           ...s,
           status: 'pending',
+          activeChainId: null,
           updatedAt: new Date().toISOString(),
         }))
         return
@@ -129,6 +134,7 @@ export function useSpecRunner(
         updateSpecInTab(tabId, specId, (s) => ({
           ...s,
           status: 'error',
+          activeChainId: null,
           runHistory: [result, ...s.runHistory],
           updatedAt: now,
         }))
@@ -139,9 +145,15 @@ export function useSpecRunner(
         throw new Error(`Invalid input node type: ${inputNode.type}`)
       }
 
+      const chainId = globalThis.crypto?.randomUUID?.() ?? uid('chain')
       const startedAt = new Date().toISOString()
       setRunningSpec(specId)
-      updateSpecInTab(tabId, specId, (s) => ({ ...s, status: 'running', updatedAt: startedAt }))
+      updateSpecInTab(tabId, specId, (s) => ({
+        ...s,
+        status: 'running',
+        activeChainId: chainId,
+        updatedAt: startedAt,
+      }))
 
       // @@@spec-inject - sync ref, reset runtime, and inject spec content before chain run
       patchNodeInTab(tabId, inputNode.id, (node) => {
@@ -163,10 +175,14 @@ export function useSpecRunner(
 
       let error: string | undefined
       let runOutputs: Map<string, LocalOutput> | null = null
+      let chainStatus: ChainRunStatus | null = null
       try {
-        runOutputs = await runFrom(inputNode.id)
+        const runResult = await runFrom(inputNode.id, { chainId })
+        runOutputs = runResult.outputs
+        chainStatus = runResult.status
       } catch (err) {
         error = String((err as Error)?.message ?? err)
+        chainStatus = 'error'
         console.error(err)
       }
 
@@ -206,9 +222,18 @@ export function useSpecRunner(
       }
 
       const finishedAt = new Date().toISOString()
-      const combinedError = [error, outputError].filter(Boolean).join(' | ') || undefined
+      const chainError =
+        chainStatus === 'error'
+          ? error
+            ? undefined
+            : 'Chain run failed'
+          : chainStatus === 'cancelled'
+            ? 'Chain run cancelled'
+            : undefined
+      const combinedError = [error, outputError, chainError].filter(Boolean).join(' | ') || undefined
       const result: SpecRunResult = {
         runId: uid('spec_run'),
+        chainId,
         startedAt,
         finishedAt,
         outputs,
@@ -218,6 +243,7 @@ export function useSpecRunner(
       updateSpecInTab(tabId, specId, (s) => ({
         ...s,
         status: combinedError ? 'error' : 'finished',
+        activeChainId: null,
         runHistory: [result, ...s.runHistory],
         updatedAt: finishedAt,
       }))
@@ -256,6 +282,7 @@ export function useSpecRunner(
       updateSpecInTab(tabId, specId, (s) => ({
         ...s,
         status: 'ready',
+        activeChainId: null,
         updatedAt: new Date().toISOString(),
       }))
     },

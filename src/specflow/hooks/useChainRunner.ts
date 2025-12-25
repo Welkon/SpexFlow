@@ -66,14 +66,17 @@ export function useChainRunner(
   }, [])
 
   const runFrom = useCallback(
-    async (nodeId: string) => {
+    async (nodeId: string, opts?: { chainId?: string }) => {
       const snap = appDataRef.current
       if (!snap) throw new Error('App data not loaded')
       if (!snap.activeTabId) throw new Error('Active tab not set')
       const capturedTabId = snap.activeTabId
       const tabNow = getTabById(capturedTabId)
       const start = tabNow.canvas.nodes.find((n) => n.id === nodeId)
-      if (start?.data.locked) return new Map()
+      const chainId = opts?.chainId ?? (globalThis.crypto?.randomUUID?.() ?? uid('chain'))
+      if (start?.data.locked) {
+        return { chainId, outputs: new Map(), status: 'cancelled' as ChainRunStatus }
+      }
 
       const localOutputs = new Map<string, LocalOutput>()
       const tabSnapshot = getTabById(capturedTabId)
@@ -105,7 +108,6 @@ export function useChainRunner(
         throw new Error('Some nodes in this chain are running. Wait for them to finish before chaining.')
       }
 
-      const chainId = globalThis.crypto?.randomUUID?.() ?? uid('chain')
       const abortController = new AbortController()
       const startedAt = new Date().toISOString()
 
@@ -229,7 +231,7 @@ export function useChainRunner(
         setChainRuns((runs) => runs.filter((r) => r.id !== chainId))
       }, 2500)
 
-      return new Map(localOutputs)
+      return { chainId, outputs: new Map(localOutputs), status: nextStatus }
     },
     [appDataRef, getTabById, updateCanvasById, inFlightRuns, runNode, nodeToLocalOutput, markChainCompleted, markChainFailed, updateChainRun],
   )

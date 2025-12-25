@@ -153,6 +153,7 @@ export type SpecRunResult = {
   startedAt: string
   finishedAt: string | null
   outputs: Record<string, string>
+  chainId?: string
   error?: string
 }
 
@@ -163,6 +164,7 @@ export type Spec = {
   inputNodeId: string
   outputs: SpecOutputMapping[]
   isTemplate?: boolean
+  activeChainId?: string | null
   status: SpecStatus
   runHistory: SpecRunResult[]
   createdAt: string

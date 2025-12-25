@@ -217,7 +217,9 @@ export function SpecDashboard({
                   t(language, 'spec_no_outputs'),
                 )
                 const canExpand = !!lastRun
-                const activeRun = chainRuns.find((run) => run.fromNodeId === spec.inputNodeId)
+                const activeRun = spec.activeChainId
+                  ? chainRuns.find((run) => run.id === spec.activeChainId)
+                  : undefined
                 const progress = activeRun
                   ? getChainRunProgress(activeRun)
                   : { ...getSpecStatusProgress(spec.status), rightText: undefined }
