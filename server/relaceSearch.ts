@@ -3,11 +3,15 @@ import path from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { writeSearchRunDump } from './searchRunLog.js'
+import { formatPathValidationFeedback, validateFilePaths } from './pathValidator.js'
 
 const execFileAsync = promisify(execFile)
 
 const MAX_TOOL_OUTPUT_CHARS = 12_000
 const MAX_VIEW_FILE_LINES = 400
+const MAX_PATH_VALIDATION_RETRIES = 3
+const MAX_FORCED_REPORT_TURNS = 6
+const MAX_TOTAL_TURNS = 30
 
 type ToolCall = {
   id: string
@@ -35,14 +39,22 @@ type RunRelaceSearchArgs = {
   repoRoot: string
   userQuery: string
   maxTurns?: number
+  debugMessages?: boolean
   runId?: string
   dumpMessages?: boolean
   dumpOnError?: boolean
 }
 
+type SearchTraceEntry = {
+  turn: number
+  toolCalls: string[]
+  pathValidationRetry?: boolean
+  invalidPaths?: string[]
+}
+
 export type RunRelaceSearchResult = {
   report: ReportBackPayload
-  trace: { turn: number; toolCalls: string[] }[]
+  trace: SearchTraceEntry[]
   messageStats?: { turn: number; messagesChars: number; messagesCount: number }[]
   messageDumpPath?: string
 }
@@ -484,8 +496,10 @@ async function callRelace(apiKey: string, messages: ChatMessage[]) {
 }
 
 export async function runRelaceSearch(args: RunRelaceSearchArgs): Promise<RunRelaceSearchResult> {
-  const maxTurns = args.maxTurns ?? 12
+  const maxTurns = Math.min(args.maxTurns ?? 12, MAX_TOTAL_TURNS)
+  const maxTotalTurns = Math.min(maxTurns + MAX_FORCED_REPORT_TURNS, MAX_TOTAL_TURNS)
   const dumpOnError = args.dumpOnError ?? true
+  const debugMessages = args.debugMessages ?? false
 
   const repoStat = await stat(args.repoRoot)
   if (!repoStat.isDirectory()) throw new Error(`repoRoot is not a directory: ${args.repoRoot}`)
@@ -495,9 +509,10 @@ export async function runRelaceSearch(args: RunRelaceSearchArgs): Promise<RunRel
     { role: 'user', content: buildUserPrompt(args.userQuery) },
   ]
 
-  const trace: { turn: number; toolCalls: string[] }[] = []
+  const trace: SearchTraceEntry[] = []
   const messageStats: { turn: number; messagesChars: number; messagesCount: number }[] = []
   let messageDumpPath: string | undefined
+  let pathValidationRetries = 0
 
   async function stepOnce(turn: number) {
     messageStats.push({ turn, ...getMessagesStats(messages) })
@@ -522,7 +537,7 @@ export async function runRelaceSearch(args: RunRelaceSearchArgs): Promise<RunRel
       } catch {
         throw new Error(`Invalid report_back arguments: ${reportCall.function.arguments}`)
       }
-      return { report: parsed, trace }
+      return parsed
     }
 
     if (toolCalls.length === 0) {
@@ -590,31 +605,108 @@ export async function runRelaceSearch(args: RunRelaceSearchArgs): Promise<RunRel
     })
   }
 
+  async function finalizeReport(report: ReportBackPayload, turn: number) {
+    const filePaths = Object.keys(report.files ?? {})
+    if (filePaths.length === 0) {
+      await maybeDump('success')
+      return { report, trace, messageStats, messageDumpPath }
+    }
+
+    if (debugMessages) {
+      console.log(`[Turn ${turn}] Validating ${filePaths.length} file paths...`)
+    }
+    const validation = await validateFilePaths(args.repoRoot, filePaths)
+
+    if (debugMessages) {
+      console.log(
+        `[Turn ${turn}] Valid: ${validation.valid.length}, Invalid: ${validation.invalid.length}`,
+      )
+      if (validation.invalid.length > 0) {
+        console.log(`[Turn ${turn}] Invalid paths:`, validation.invalid)
+      }
+    }
+
+    if (validation.invalid.length > 0) {
+      pathValidationRetries += 1
+      const traceEntry = trace[trace.length - 1]
+      if (traceEntry) {
+        traceEntry.pathValidationRetry = true
+        traceEntry.invalidPaths = validation.invalid
+      }
+
+      if (debugMessages) {
+        console.log(`[Turn ${turn}] Retry ${pathValidationRetries}/${MAX_PATH_VALIDATION_RETRIES}`)
+      }
+
+      if (pathValidationRetries >= MAX_PATH_VALIDATION_RETRIES) {
+        console.warn(
+          `Path validation failed after ${pathValidationRetries} retries. Returning partial results without invalid paths: ${validation.invalid.join(', ')}`,
+        )
+        if (validation.valid.length === 0) {
+          console.warn('All returned file paths were invalid. Returning empty result.')
+        }
+
+        const filteredFiles: Record<string, [number, number][]> = {}
+        for (const validPath of validation.valid) {
+          if (report.files[validPath]) {
+            filteredFiles[validPath] = report.files[validPath]
+          }
+        }
+
+        const explanation =
+          validation.valid.length === 0
+            ? `${report.explanation}\n\n[Note: All file paths returned were invalid and have been removed]`
+            : report.explanation
+
+        await maybeDump('success')
+        return {
+          report: {
+            explanation,
+            files: filteredFiles,
+          },
+          trace,
+          messageStats,
+          messageDumpPath,
+        }
+      }
+
+      const feedbackMessage = formatPathValidationFeedback(validation.invalid)
+      messages.push({ role: 'user', content: feedbackMessage })
+      return null
+    }
+
+    await maybeDump('success')
+    return { report, trace, messageStats, messageDumpPath }
+  }
+
   try {
     for (let turn = 1; turn <= maxTurns; turn++) {
       // @@@tool-loop - run tool calls in parallel, stop only at `report_back`
-      const done = await stepOnce(turn)
-      if (done) {
-        await maybeDump('success')
-        return { ...done, messageStats, messageDumpPath }
+      const report = await stepOnce(turn)
+      if (report) {
+        const done = await finalizeReport(report, turn)
+        if (done) return done
       }
     }
 
-    // @@@force-report - if the model doesn't terminate, explicitly require report_back
-    messages.push({
-      role: 'user',
-      content:
-        'Stop exploring now. You must call report_back with your best current understanding. Do not call any other tool.',
-    })
-    for (let turn = maxTurns + 1; turn <= maxTurns + 2; turn++) {
-      const done = await stepOnce(turn)
-      if (done) {
-        await maybeDump('success')
-        return { ...done, messageStats, messageDumpPath }
+    const forcedTurns = Math.max(0, maxTotalTurns - maxTurns)
+    if (forcedTurns > 0) {
+      // @@@force-report - if the model doesn't terminate, explicitly require report_back
+      messages.push({
+        role: 'user',
+        content:
+          'Stop exploring now. You must call report_back with your best current understanding. Do not call any other tool.',
+      })
+      for (let turn = maxTurns + 1; turn <= maxTurns + forcedTurns; turn++) {
+        const report = await stepOnce(turn)
+        if (report) {
+          const done = await finalizeReport(report, turn)
+          if (done) return done
+        }
       }
     }
 
-    throw new Error(`Exceeded maxTurns (${maxTurns}) without report_back.`)
+    throw new Error(`Exceeded maxTotalTurns (${maxTotalTurns}) without report_back.`)
   } catch (err) {
     if (dumpOnError) {
       await maybeDump('error')

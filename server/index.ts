@@ -53,6 +53,7 @@ app.post('/api/relace-search', async (req, res) => {
       apiKey,
       repoRoot,
       userQuery: query,
+      debugMessages,
       runId: id,
       dumpMessages: debugMessages,
       dumpOnError: true,

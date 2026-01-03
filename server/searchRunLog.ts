@@ -9,7 +9,7 @@ export type SearchRunLogEntry = {
   query: string
   ok: boolean
   error?: string
-  trace?: { turn: number; toolCalls: string[] }[]
+  trace?: { turn: number; toolCalls: string[]; pathValidationRetry?: boolean; invalidPaths?: string[] }[]
   reportFilesCount?: number
   messageDumpPath?: string
   messageStats?: { turn: number; messagesChars: number; messagesCount: number }[]
