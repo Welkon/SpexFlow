@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import type { ArchivedMember } from '../types'
+import { useModalBackdropClose } from '../hooks/useModalBackdropClose'
 
 type Props = {
   isOpen: boolean
@@ -25,17 +26,15 @@ export function ArchivedMemberModal({ isOpen, member, onClose, onUnarchive }: Pr
     return JSON.stringify(member.snapshot ?? {}, null, 2)
   }, [member])
 
-  if (!isOpen) return null
+  const { handleBackdropClick, contentMouseHandlers } = useModalBackdropClose(onClose)
 
-  function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) onClose()
-  }
+  if (!isOpen) return null
 
   const title = member ? `${member.customName || member.title} (${member.type})` : 'Archived Member'
 
   return (
     <div className="sfModalBackdrop" onClick={handleBackdropClick}>
-      <div className="sfModalContent">
+      <div className="sfModalContent" {...contentMouseHandlers}>
         <div className="sfModalHeader">
           <span className="sfModalTitle">{title}</span>
           <button className="sfModalCloseBtn" onClick={onClose} title="Close (Esc)">
@@ -83,4 +82,3 @@ export function ArchivedMemberModal({ isOpen, member, onClose, onUnarchive }: Pr
     </div>
   )
 }
-

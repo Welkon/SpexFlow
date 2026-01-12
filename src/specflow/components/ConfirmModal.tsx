@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useModalBackdropClose } from '../hooks/useModalBackdropClose'
 
 type Props = {
   isOpen: boolean
@@ -30,15 +31,13 @@ export function ConfirmModal({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onCancel])
 
-  if (!isOpen) return null
+  const { handleBackdropClick, contentMouseHandlers } = useModalBackdropClose(onCancel)
 
-  function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) onCancel()
-  }
+  if (!isOpen) return null
 
   return (
     <div className="sfModalBackdrop" onClick={handleBackdropClick}>
-      <div className="sfModalContent" onClick={(e) => e.stopPropagation()}>
+      <div className="sfModalContent" {...contentMouseHandlers}>
         <div className="sfModalHeader">
           <span className="sfModalTitle">{title}</span>
           <button className="sfModalCloseBtn" onClick={onCancel} title="Close (Esc)">
@@ -61,4 +60,3 @@ export function ConfirmModal({
     </div>
   )
 }
-

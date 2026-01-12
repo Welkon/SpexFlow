@@ -5,6 +5,7 @@ import type { SpecRunResult, AppNode } from '../types'
 import type { Language } from '../../../shared/appDataTypes'
 import { t } from '../i18n'
 import { CopyButton } from './CopyButton'
+import { useModalBackdropClose } from '../hooks/useModalBackdropClose'
 
 type SpecOutputModalProps = {
   isOpen: boolean
@@ -46,15 +47,13 @@ export function SpecOutputModal({ isOpen, result, outputTypes, onClose, language
     return Object.entries(result.outputs)
   }, [result])
 
-  if (!isOpen || !result) return null
+  const { handleBackdropClick, contentMouseHandlers } = useModalBackdropClose(onClose)
 
-  function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) onClose()
-  }
+  if (!isOpen || !result) return null
 
   return (
     <div className="sfModalBackdrop" onClick={handleBackdropClick}>
-      <div className="sfModalContent sfSpecOutputModal">
+      <div className="sfModalContent sfSpecOutputModal" {...contentMouseHandlers}>
         <div className="sfModalHeader">
           <div>
             <span className="sfModalTitle">{t(language, 'spec_outputs')}</span>

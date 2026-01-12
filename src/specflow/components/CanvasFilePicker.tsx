@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Language } from '../../../shared/appDataTypes'
 import { listCanvasFiles } from '../api'
 import { t } from '../i18n'
+import { useModalBackdropClose } from '../hooks/useModalBackdropClose'
 
 type CanvasFile = { name: string; path: string; modifiedAt: string }
 
@@ -61,15 +62,13 @@ export function CanvasFilePicker(props: Props) {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose])
 
+  const { handleBackdropClick, contentMouseHandlers } = useModalBackdropClose(onClose)
+
   if (!isOpen) return null
 
   const title = props.mode === 'save' ? t(language, 'save_canvas_title') : t(language, 'load_canvas_title')
 
   const canConfirm = props.mode === 'load' ? !!selectedPath : !!fileName.trim()
-
-  function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) onClose()
-  }
 
   function handleConfirm() {
     if (props.mode === 'load') {
@@ -84,7 +83,7 @@ export function CanvasFilePicker(props: Props) {
 
   return (
     <div className="sfModalBackdrop" onClick={handleBackdropClick}>
-      <div className="sfModalContent" style={{ width: 620, maxWidth: '92vw' }} onClick={(e) => e.stopPropagation()}>
+      <div className="sfModalContent" style={{ width: 620, maxWidth: '92vw' }} {...contentMouseHandlers}>
         <div className="sfModalHeader">
           <span className="sfModalTitle">{title}</span>
           <button className="sfModalCloseBtn" onClick={onClose} title={t(language, 'modal_close_esc')}>

@@ -1,5 +1,5 @@
-import { useRef } from 'react'
-import type { ReactNode, MouseEvent } from 'react'
+import type { ReactNode } from 'react'
+import { useModalBackdropClose } from '../hooks/useModalBackdropClose'
 
 type Props = {
   isOpen: boolean
@@ -11,31 +11,13 @@ type Props = {
 }
 
 export function SettingsModalShell({ isOpen, title, onClose, children, footer, closeTitle = 'Close' }: Props) {
-  const mouseDownInsideRef = useRef(false)
+  const { handleBackdropClick, contentMouseHandlers } = useModalBackdropClose(onClose)
 
   if (!isOpen) return null
 
-  function handleBackdropClick(e: MouseEvent) {
-    if (mouseDownInsideRef.current) {
-      mouseDownInsideRef.current = false
-      return
-    }
-    if (e.target === e.currentTarget) {
-      onClose()
-    }
-  }
-
   return (
     <div className="sfModalBackdrop" onClick={handleBackdropClick}>
-      <div
-        className="sfSettingsModal"
-        onMouseDown={() => {
-          mouseDownInsideRef.current = true
-        }}
-        onMouseUp={() => {
-          mouseDownInsideRef.current = false
-        }}
-      >
+      <div className="sfSettingsModal" {...contentMouseHandlers}>
         <div className="sfModalHeader">
           <span className="sfModalTitle">{title}</span>
           <button className="sfModalCloseBtn" onClick={onClose} title={closeTitle}>

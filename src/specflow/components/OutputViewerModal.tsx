@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { CopyButton } from './CopyButton'
+import { useModalBackdropClose } from '../hooks/useModalBackdropClose'
 
 type Props = {
   isOpen: boolean
@@ -46,17 +47,13 @@ export function OutputViewerModal({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose])
 
-  if (!isOpen) return null
+  const { handleBackdropClick, contentMouseHandlers } = useModalBackdropClose(onClose)
 
-  function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) {
-      onClose()
-    }
-  }
+  if (!isOpen) return null
 
   return (
     <div className="sfModalBackdrop" onClick={handleBackdropClick}>
-      <div className="sfModalContent">
+      <div className="sfModalContent" {...contentMouseHandlers}>
         <div className="sfModalHeader">
           <span className="sfModalTitle">{title}</span>
           <div className="sfModalHeaderActions">

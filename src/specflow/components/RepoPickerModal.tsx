@@ -3,6 +3,7 @@ import type { ManualImportItem } from '../../../shared/appDataTypes'
 import type { Language } from '../../../shared/appDataTypes'
 import { listRepoDir } from '../api'
 import { t } from '../i18n'
+import { useModalBackdropClose } from '../hooks/useModalBackdropClose'
 
 type DirEntry = {
   kind: 'file' | 'dir'
@@ -113,6 +114,8 @@ export function RepoPickerModal({ isOpen, repoPath, language, initialItems, onCo
     return entries.filter((e) => e.name.toLowerCase().includes(q))
   }, [entries, filter])
 
+  const { handleBackdropClick, contentMouseHandlers } = useModalBackdropClose(onClose)
+
   if (!isOpen) return null
 
   function toggleItem(item: ManualImportItem) {
@@ -128,15 +131,11 @@ export function RepoPickerModal({ isOpen, repoPath, language, initialItems, onCo
     })
   }
 
-  function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) onClose()
-  }
-
   const selectedItems = Object.values(selected).sort((a, b) => a.relPath.localeCompare(b.relPath))
 
   return (
     <div className="sfModalBackdrop" onClick={handleBackdropClick}>
-      <div className="sfModalContent" style={{ width: 820, maxWidth: '92vw' }}>
+      <div className="sfModalContent" style={{ width: 820, maxWidth: '92vw' }} {...contentMouseHandlers}>
         <div className="sfModalHeader">
           <span className="sfModalTitle">{t(language, 'manual_import_pick_title')}</span>
           <button className="sfModalCloseBtn" onClick={onClose} title={t(language, 'close')}>

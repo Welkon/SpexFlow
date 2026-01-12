@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import type { Spec, SpecRunResult } from '../types'
 import type { Language } from '../../../shared/appDataTypes'
 import { t } from '../i18n'
+import { useModalBackdropClose } from '../hooks/useModalBackdropClose'
 
 type SpecHistoryModalProps = {
   isOpen: boolean
@@ -38,15 +39,13 @@ export function SpecHistoryModal({ isOpen, spec, onClose, onSelectRun, language 
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose])
 
-  if (!isOpen) return null
+  const { handleBackdropClick, contentMouseHandlers } = useModalBackdropClose(onClose)
 
-  function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) onClose()
-  }
+  if (!isOpen) return null
 
   return (
     <div className="sfModalBackdrop" onClick={handleBackdropClick}>
-      <div className="sfModalContent">
+      <div className="sfModalContent" {...contentMouseHandlers}>
         <div className="sfModalHeader">
           <span className="sfModalTitle">{t(language, 'spec_run_history')}</span>
           <button className="sfModalCloseBtn" onClick={onClose} title={t(language, 'modal_close_esc')}>

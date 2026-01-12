@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { AppNode, Spec, SpecOutputMapping } from '../types'
 import type { Language } from '../../../shared/appDataTypes'
 import { t } from '../i18n'
+import { useModalBackdropClose } from '../hooks/useModalBackdropClose'
 
 type SpecEditorModalProps = {
   isOpen: boolean
@@ -94,11 +95,9 @@ export function SpecEditorModal({
     !inputMissing &&
     outputs.every((o) => o.nodeId && o.label.trim().length > 0)
 
-  if (!isOpen) return null
+  const { handleBackdropClick, contentMouseHandlers } = useModalBackdropClose(onClose)
 
-  function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) onClose()
-  }
+  if (!isOpen) return null
 
   function handleAddOutput() {
     setOutputs((prev) => [...prev, { nodeId: '', label: '' }])
@@ -126,7 +125,7 @@ export function SpecEditorModal({
 
   return (
     <div className="sfModalBackdrop" onClick={handleBackdropClick}>
-      <div className="sfModalContent">
+      <div className="sfModalContent" {...contentMouseHandlers}>
         <div className="sfModalHeader">
           <span className="sfModalTitle">
             {spec ? t(language, 'spec_edit') : t(language, 'spec_new')}

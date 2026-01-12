@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useModalBackdropClose } from '../hooks/useModalBackdropClose'
 
 type Props = {
   isOpen: boolean
@@ -58,22 +59,18 @@ export function TextEditorModal({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, localValue])
 
-  if (!isOpen) return null
-
   function handleSave() {
     onChange(localValue)
     onClose()
   }
 
-  function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) {
-      handleSave()
-    }
-  }
+  const { handleBackdropClick, contentMouseHandlers } = useModalBackdropClose(handleSave)
+
+  if (!isOpen) return null
 
   return (
     <div className="sfModalBackdrop" onClick={handleBackdropClick}>
-      <div className="sfModalContent">
+      <div className="sfModalContent" {...contentMouseHandlers}>
         <div className="sfModalHeader">
           <span className="sfModalTitle">{title}</span>
           <button className="sfModalCloseBtn" onClick={handleSave} title={closeTitle}>
